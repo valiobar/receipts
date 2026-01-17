@@ -1,10 +1,10 @@
-# Pulse Receipt System
+# Receipt System
 
 A real-time receipt printing and device management platform that receives webhook events from external systems, processes receipt data, and manages WebSocket connections with physical receipt printers.
 
 ## Overview
 
-The Pulse Receipt System provides:
+The Receipt System provides:
 - Real-time receipt processing from external webhooks
 - WebSocket-based communication with physical receipt printers
 - Frontend dashboard for monitoring and querying receipts
@@ -105,7 +105,7 @@ Create environment files for both frontend and backend:
 ```bash
 NODE_ENV=development
 PORT=3000
-MONGODB_URI=mongodb://localhost:27017/pulse-receipt
+MONGODB_URI=mongodb://localhost:27017/receipt
 JWT_SECRET=your-secret-key-change-in-production
 JWT_EXPIRES_IN=24h
 
@@ -281,7 +281,7 @@ npm test
 ### Build Docker Image
 
 ```bash
-docker build -t pulse-receipt .
+docker build -t receipt .
 ```
 
 ### Run with Docker Compose

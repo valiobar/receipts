@@ -1,4 +1,4 @@
-# Pulse Receipt System - Architecture Documentation
+# Receipt System - Architecture Documentation
 
 ## Table of Contents
 
@@ -20,7 +20,7 @@
 
 ## Executive Summary
 
-The Pulse Receipt System is a real-time receipt printing and device management platform that:
+The Receipt System is a real-time receipt printing and device management platform that:
 - Receives webhook events from external systems
 - Processes receipt data and commands
 - Manages WebSocket connections with physical receipt printers (devices)
@@ -305,7 +305,7 @@ class WebhookController {
       return res.json({ success: false });
     }
     
-    // Parse message: "Club: Pulse Bulgaria; Fee: 2.76; User: 12345; Device: 123"
+    // Parse message: "Club: Bulgaria; Fee: 2.76; User: 12345; Device: 123"
     const params = message.split(';');
     const receiptData = {
       club: extractValue(params[0], 'Club'),
@@ -563,7 +563,7 @@ class EventService extends EventEmitter {
       try {
         const command = await this.commandService.createReceiptCommand(data);
         
-        // Broadcast to frontend clients (matches pulse-receipt format - no type wrapper)
+        // Broadcast to frontend clients (matches receipt format - no type wrapper)
         this.connectionManager.broadcastToClients({
           MessageId: command._id.toString(),
           UnicSaleNum: command.clubReceiptN,
@@ -853,7 +853,7 @@ interface DeviceMessage {
 }
 
 // Frontend Client Messages
-// Note: Receipt events are sent directly without a type wrapper (matches pulse-receipt)
+// Note: Receipt events are sent directly without a type wrapper (matches receipt)
 // Other messages (connect, noPaper, info) include a type field
 type ClientMessage = 
   | {
@@ -1349,8 +1349,8 @@ npm run dev
 
 1. **Project Setup**
    ```bash
-   mkdir pulse-receipt-ts
-   cd pulse-receipt-ts
+   mkdir receipt-ts
+   cd receipt-ts
    npm init -y
    npm install express socket.io mongoose jsonwebtoken
    npm install -D typescript @types/node @types/express ts-node concurrently chokidar-cli
@@ -1528,7 +1528,7 @@ eventService.on('receipt', async (data) => {
     // Process command
     await commandService.processPendingCommands(data.device);
     
-    // Broadcast to clients (matches pulse-receipt format - no type wrapper)
+    // Broadcast to clients (matches receipt format - no type wrapper)
     connectionManager.broadcastToClients({
       MessageId: command._id.toString(),
       UnicSaleNum: command.clubReceiptN,

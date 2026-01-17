@@ -19,7 +19,7 @@
 
 ## Overview
 
-The Pulse Receipt System uses multiple communication protocols to facilitate interaction between:
+The Receipt System uses multiple communication protocols to facilitate interaction between:
 - **External Systems** (via HTTP Webhooks)
 - **Server** (Node.js backend)
 - **Physical Devices** (Receipt printers via WebSocket)
@@ -92,7 +92,7 @@ Club:{club_name};Zone:{zone_name};MembershipFee:{fee};UserNumber:{user_id};{devi
 
 | Component | Format | Example | Description |
 |-----------|--------|---------|-------------|
-| `Club` | `Club:{name}` | `Club:Pulse Bulgaria` | Location/club name |
+| `Club` | `Club:{name}` | `Club:Bulgaria` | Location/club name |
 | `Zone` | `Zone:{name}` | `Zone:Fitness` | Zone identifier (optional) |
 | `MembershipFee` | `MembershipFee:{number}` | `MembershipFee:123.99` | Membership fee amount |
 | `UserNumber` | `UserNumber:{id}` | `UserNumber:123456` | User identifier |
@@ -113,8 +113,8 @@ Host: {server_host}
 ### Complete Request Example
 
 ```
-GET /webhook?isSuccess=true&message=Club:Pulse%20Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123 HTTP/1.1
-Host: fiscal.pulsefit.bg
+GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123 HTTP/1.1
+Host: fiscal.fit.bg
 x-real-ip: 213.91.159.250
 User-Agent: ExternalSystem/1.0
 ```
@@ -298,7 +298,7 @@ wss://server:port/ws/123  (SSL)
 }
 ```
 
-**Note:** In pulse-receipt implementation, `Seq` and `Price` are stored as strings in MongoDB and sent as strings in JSON. Most JSON parsers will accept both string and number formats, but to match pulse-receipt exactly, strings are used.
+**Note:** In receipt implementation, `Seq` and `Price` are stored as strings in MongoDB and sent as strings in JSON. Most JSON parsers will accept both string and number formats, but to match receipt exactly, strings are used.
 
 #### 2. Daily Report Command
 
@@ -388,7 +388,7 @@ wss://server:port/ws/123  (SSL)
 | `CommandId` | string | Yes | Custom command identifier (hex) |
 | `Data` | string | Optional | Command data (hex string) |
 
-**Note:** Field order matches pulse-receipt implementation. JSON is unordered, but this order is used for consistency.
+**Note:** Field order matches receipt implementation. JSON is unordered, but this order is used for consistency.
 
 **Common Command IDs:**
 - `"2A"` - Generic custom command
@@ -447,7 +447,7 @@ wss://server:port/ws/123  (SSL)
 
 3. **Message Formatting:**
    - All messages must be valid JSON
-   - `Seq` and `Price` fields are sent as strings (matching pulse-receipt implementation)
+   - `Seq` and `Price` fields are sent as strings (matching receipt implementation)
    - MessageId must be valid MongoDB ObjectId string
 
 4. **Error Handling:**
@@ -687,7 +687,7 @@ wss://server:port/client  (SSL)
 ```
 
 **Authentication:**
-- No authentication required (matches pulse-receipt implementation)
+- No authentication required (matches receipt implementation)
 - Multiple clients can connect simultaneously
 
 ### Message Types
@@ -731,7 +731,7 @@ wss://server:port/client  (SSL)
   "action": "print",
   "price": "2.76",
   "user": "123456",
-  "location": "Pulse Bulgaria"
+  "location": "Bulgaria"
 }
 ```
 
@@ -746,7 +746,7 @@ wss://server:port/client  (SSL)
 | `user` | string | Yes | User number |
 | `location` | string | Yes | Location name |
 
-**Note:** This message format matches pulse-receipt implementation exactly. The message is sent directly without a `type` wrapper.
+**Note:** This message format matches receipt implementation exactly. The message is sent directly without a `type` wrapper.
 
 **Example:**
 ```json
@@ -756,7 +756,7 @@ wss://server:port/client  (SSL)
   "action": "print",
   "price": "2.76",
   "user": "123456",
-  "location": "Pulse Bulgaria"
+  "location": "Bulgaria"
 }
 ```
 
@@ -769,7 +769,7 @@ wss://server:port/client  (SSL)
 {
   "type": "connect",
   "location": {
-    "name": "Pulse Bulgaria",
+    "name": "Bulgaria",
     "device": "123",
     "status": true
   }
@@ -791,7 +791,7 @@ wss://server:port/client  (SSL)
 {
   "type": "connect",
   "location": {
-    "name": "Pulse Bulgaria",
+    "name": "Bulgaria",
     "device": "123",
     "status": true
   }
@@ -803,7 +803,7 @@ wss://server:port/client  (SSL)
 {
   "type": "connect",
   "location": {
-    "name": "Pulse Bulgaria",
+    "name": "Bulgaria",
     "device": "123",
     "status": false
   }
@@ -819,7 +819,7 @@ wss://server:port/client  (SSL)
 {
   "type": "noPaper",
   "location": {
-    "name": "Pulse Bulgaria",
+    "name": "Bulgaria",
     "device": "123",
     "status": true
   }
@@ -841,7 +841,7 @@ wss://server:port/client  (SSL)
 {
   "type": "noPaper",
   "location": {
-    "name": "Pulse Bulgaria",
+    "name": "Bulgaria",
     "device": "123",
     "status": true
   }
@@ -912,7 +912,7 @@ Clients can send messages to server (future feature):
     },
     "Price": {
       "type": "string",
-      "description": "Required for print action. Amount as string (matches pulse-receipt implementation)"
+      "description": "Required for print action. Amount as string (matches receipt implementation)"
     },
     "StartDate": {
       "type": "string",
@@ -1151,7 +1151,7 @@ async function sendCommandWithRetry(
 
 **Step 1: Webhook Request**
 ```
-GET /webhook?isSuccess=true&message=Club:Pulse%20Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123
+GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123
 ```
 
 **Step 2: Server Creates Command**
@@ -1194,7 +1194,7 @@ GET /webhook?isSuccess=true&message=Club:Pulse%20Bulgaria;Zone:Fitness;Membershi
   "action": "print",
   "price": "2.76",
   "user": "123456",
-  "location": "Pulse Bulgaria"
+  "location": "Bulgaria"
 }
 ```
 

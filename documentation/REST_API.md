@@ -23,7 +23,7 @@
 
 ## Overview
 
-The Pulse Receipt System REST API provides programmatic access to receipt data, device management, and system operations. The API follows RESTful principles and uses JSON for data exchange.
+The Receipt System REST API provides programmatic access to receipt data, device management, and system operations. The API follows RESTful principles and uses JSON for data exchange.
 
 **API Version:** 1.0  
 **Protocol:** HTTP/HTTPS  
@@ -36,7 +36,7 @@ The Pulse Receipt System REST API provides programmatic access to receipt data, 
 
 ### Production
 ```
-https://api.pulsefit.bg
+https://api.fit.bg
 ```
 
 ### Development
@@ -46,7 +46,7 @@ http://localhost:3000
 
 ### Staging
 ```
-https://staging-api.pulsefit.bg
+https://staging-api.fit.bg
 ```
 
 All endpoints are relative to the base URL unless otherwise specified.
@@ -286,7 +286,7 @@ Authenticate user and receive JWT token.
 
 **cURL Example:**
 ```bash
-curl -X POST https://api.pulsefit.bg/api/auth/login \
+curl -X POST https://api.fit.bg/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -393,7 +393,7 @@ Authorization: Bearer {token}
         "amount": "2.76",
         "MembershipFee": "123.99",
         "userNumber": "123456",
-        "location": "Pulse Bulgaria",
+        "location": "Bulgaria",
         "ip": "213.91.159.250",
         "Status": "processed",
         "ts": "2024-01-15T10:30:00Z"
@@ -411,7 +411,7 @@ Authorization: Bearer {token}
 
 **cURL Example:**
 ```bash
-curl -X GET "https://api.pulsefit.bg/api/receipts?deviceId=123&startDate=2024-01-01&limit=50" \
+curl -X GET "https://api.fit.bg/api/receipts?deviceId=123&startDate=2024-01-01&limit=50" \
   -H "Authorization: Bearer {token}"
 ```
 
@@ -445,7 +445,7 @@ Authorization: Bearer {token}
       "amount": "2.76",
       "MembershipFee": "123.99",
       "userNumber": "123456",
-      "location": "Pulse Bulgaria",
+        "location": "Bulgaria",
       "ip": "213.91.159.250",
       "Status": "processed",
       "ts": "2024-01-15T10:30:00Z"
@@ -508,7 +508,7 @@ Content-Disposition: attachment; filename="report-15-01-2024.xlsx"
 
 **cURL Example:**
 ```bash
-curl -X GET "https://api.pulsefit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31" \
+curl -X GET "https://api.fit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31" \
   -H "Authorization: Bearer {token}" \
   -o report.xlsx
 ```
@@ -544,8 +544,8 @@ Authorization: Bearer {token}
       {
         "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
         "deviceId": "123",
-        "name": "Pulse Bulgaria",
-        "location": "Pulse Fitness Spa Bulgaria",
+        "name": "Bulgaria",
+        "location": "Fitness Spa Bulgaria",
         "status": true,
         "online": true,
         "lastSeen": "2024-01-15T10:30:00Z",
@@ -591,8 +591,8 @@ Authorization: Bearer {token}
     "device": {
       "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
       "deviceId": "123",
-      "name": "Pulse Bulgaria",
-      "location": "Pulse Fitness Spa Bulgaria",
+      "name": "Bulgaria",
+        "location": "Fitness Spa Bulgaria",
       "status": true,
       "online": true,
       "lastSeen": "2024-01-15T10:30:00Z"
@@ -846,7 +846,7 @@ x-real-ip: {client_ip_address}
 
 **cURL Example:**
 ```bash
-curl -X GET "https://api.pulsefit.bg/webhook?isSuccess=true&message=Club:Pulse%20Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123" \
+curl -X GET "https://api.fit.bg/webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123" \
   -H "x-real-ip: 213.91.159.250"
 ```
 
@@ -915,7 +915,7 @@ Content-Type: application/json
 
 **cURL Example:**
 ```bash
-curl -X POST https://api.pulsefit.bg/webhook/report \
+curl -X POST https://api.fit.bg/webhook/report \
   -H "Content-Type: application/json" \
   -H "x-real-ip: 213.91.159.250" \
   -d '{
@@ -1019,7 +1019,7 @@ Authorization: Bearer {token}
   "data": {
     "sockets": [
       {
-        "location": "Pulse Bulgaria",
+        "location": "Bulgaria",
         "status": "CONNECTED",
         "closed": false,
         "id": "123"
@@ -1159,7 +1159,7 @@ interface Pagination {
 
 ```bash
 # 1. Login
-curl -X POST https://api.pulsefit.bg/api/auth/login \
+curl -X POST https://api.fit.bg/api/auth/login \
   -H "Content-Type: application/json" \
   -d '{
     "username": "admin",
@@ -1178,15 +1178,15 @@ curl -X POST https://api.pulsefit.bg/api/auth/login \
 # 2. Use token for authenticated request
 TOKEN="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
 
-curl -X GET https://api.pulsefit.bg/api/receipts \
+curl -X GET https://api.fit.bg/api/receipts \
   -H "Authorization: Bearer $TOKEN"
 
 # 3. Refresh token before expiration
-curl -X POST https://api.pulsefit.bg/api/auth/refresh \
+curl -X POST https://api.fit.bg/api/auth/refresh \
   -H "Authorization: Bearer $TOKEN"
 
 # 4. Logout
-curl -X POST https://api.pulsefit.bg/api/auth/logout \
+curl -X POST https://api.fit.bg/api/auth/logout \
   -H "Authorization: Bearer $TOKEN"
 ```
 
@@ -1194,23 +1194,23 @@ curl -X POST https://api.pulsefit.bg/api/auth/logout \
 
 ```bash
 # Get all receipts
-curl -X GET "https://api.pulsefit.bg/api/receipts" \
+curl -X GET "https://api.fit.bg/api/receipts" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get receipts for specific device
-curl -X GET "https://api.pulsefit.bg/api/receipts?deviceId=123" \
+curl -X GET "https://api.fit.bg/api/receipts?deviceId=123" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get receipts for date range
-curl -X GET "https://api.pulsefit.bg/api/receipts?startDate=2024-01-01&endDate=2024-01-31" \
+curl -X GET "https://api.fit.bg/api/receipts?startDate=2024-01-01&endDate=2024-01-31" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get receipts with pagination
-curl -X GET "https://api.pulsefit.bg/api/receipts?limit=20&offset=40" \
+curl -X GET "https://api.fit.bg/api/receipts?limit=20&offset=40" \
   -H "Authorization: Bearer $TOKEN"
 
 # Export receipts to Excel
-curl -X GET "https://api.pulsefit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31" \
+curl -X GET "https://api.fit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31" \
   -H "Authorization: Bearer $TOKEN" \
   -o report.xlsx
 ```
@@ -1219,19 +1219,19 @@ curl -X GET "https://api.pulsefit.bg/api/receipts/export?startDate=2024-01-01&en
 
 ```bash
 # Get all devices
-curl -X GET "https://api.pulsefit.bg/api/devices" \
+curl -X GET "https://api.fit.bg/api/devices" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get specific device
-curl -X GET "https://api.pulsefit.bg/api/devices/123" \
+curl -X GET "https://api.fit.bg/api/devices/123" \
   -H "Authorization: Bearer $TOKEN"
 
 # Get device status
-curl -X GET "https://api.pulsefit.bg/api/devices/123/status" \
+curl -X GET "https://api.fit.bg/api/devices/123/status" \
   -H "Authorization: Bearer $TOKEN"
 
 # Send daily report command
-curl -X POST "https://api.pulsefit.bg/api/devices/123/command" \
+curl -X POST "https://api.fit.bg/api/devices/123/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1239,7 +1239,7 @@ curl -X POST "https://api.pulsefit.bg/api/devices/123/command" \
   }'
 
 # Send period report command
-curl -X POST "https://api.pulsefit.bg/api/devices/123/command" \
+curl -X POST "https://api.fit.bg/api/devices/123/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1253,11 +1253,11 @@ curl -X POST "https://api.pulsefit.bg/api/devices/123/command" \
 
 ```bash
 # Receipt webhook
-curl -X GET "https://api.pulsefit.bg/webhook?isSuccess=true&message=Club:Pulse%20Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123" \
+curl -X GET "https://api.fit.bg/webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123.99;UserNumber:123456;123" \
   -H "x-real-ip: 213.91.159.250"
 
 # Daily report webhook
-curl -X POST https://api.pulsefit.bg/webhook/report \
+curl -X POST https://api.fit.bg/webhook/report \
   -H "Content-Type: application/json" \
   -H "x-real-ip: 213.91.159.250" \
   -d '{
@@ -1273,7 +1273,7 @@ curl -X POST https://api.pulsefit.bg/webhook/report \
 ### JavaScript/TypeScript
 
 ```typescript
-class PulseReceiptAPI {
+class ReceiptAPI {
   private baseURL: string;
   private token: string | null = null;
 
@@ -1358,7 +1358,7 @@ class PulseReceiptAPI {
 }
 
 // Usage
-const api = new PulseReceiptAPI('https://api.pulsefit.bg');
+const api = new ReceiptAPI('https://api.fit.bg');
 await api.login('admin', 'password123');
 const receipts = await api.getReceipts({ deviceId: '123' });
 const devices = await api.getDevices();
@@ -1371,7 +1371,7 @@ await api.sendCommand('123', { type: 'dailyReport' });
 import requests
 from typing import Optional, Dict, List
 
-class PulseReceiptAPI:
+class ReceiptAPI:
     def __init__(self, base_url: str):
         self.base_url = base_url
         self.token: Optional[str] = None
@@ -1411,7 +1411,7 @@ class PulseReceiptAPI:
         raise Exception(data["error"]["message"])
 
 # Usage
-api = PulseReceiptAPI("https://api.pulsefit.bg")
+api = ReceiptAPI("https://api.fit.bg")
 api.login("admin", "password123")
 receipts = api.get_receipts(deviceId="123", limit=50)
 devices = api.get_devices()
