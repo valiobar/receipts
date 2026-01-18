@@ -644,7 +644,7 @@ Authorization: Bearer {token}
 
 ### POST /api/devices/:id/command
 
-Send a command to a device.
+Send a command to a device. **All report types are triggered by the client (frontend) via this API endpoint, not via webhook.**
 
 **Authentication:** Required (Bearer token, Admin role)
 
@@ -659,27 +659,52 @@ Send a command to a device.
 **Daily Report:**
 ```json
 {
-  "type": "dailyReport"
+  "type": "daily"
+}
+```
+
+**Daily X Report:**
+```json
+{
+  "type": "daily-X"
 }
 ```
 
 **Period Report:**
 ```json
 {
-  "type": "periodReport",
-  "startDate": "2024-01-01",
-  "endDate": "2024-01-31"
+  "type": "period",
+  "startDate": "01-01-2024",
+  "endDate": "31-01-2024"
 }
 ```
+
+**Note:** Date format can be `DD-MM-YYYY` or ISO 8601 format.
 
 **Custom Command:**
 ```json
 {
-  "type": "customCommand",
+  "type": "cmd",
   "commandId": "2A",
   "data": "C0C1C2C3"
 }
 ```
+
+**Spad Naprejenie (Voltage Drop) Command:**
+```json
+{
+  "type": "spad-naprejenie",
+  "commandId": "82",
+  "data": "C0C1C2C3"
+}
+```
+
+**Supported Command Types:**
+- `daily` - Daily report
+- `daily-X` - Daily X report
+- `period` - Period report (requires `startDate` and `endDate`)
+- `cmd` - Custom command (requires `commandId` and `data`)
+- `spad-naprejenie` - Voltage drop command (requires `commandId` and `data`)
 
 **Request Headers:**
 ```
@@ -701,13 +726,31 @@ Content-Type: application/json
 }
 ```
 
-**Response: 400 Bad Request (Device Offline)**
+**Response: 200 OK (Device Offline - Command Queued)**
+```json
+{
+  "success": true,
+  "data": {
+    "commandId": "65a1b2c3d4e5f6a7b8c9d0e3",
+    "deviceId": "123",
+    "type": "daily",
+    "status": "pending",
+    "createdAt": "2024-01-15T10:30:00Z",
+    "message": "Device is not connected. Command will be queued."
+  }
+}
+```
+
+**Response: 400 Bad Request (Validation Error)**
 ```json
 {
   "success": false,
   "error": {
-    "code": "DEVICE_OFFLINE",
-    "message": "Device is not connected. Command will be queued."
+    "code": "VALIDATION_ERROR",
+    "message": "Invalid command type",
+    "details": {
+      "type": "Must be one of: daily, period, cmd, daily-X, spad-naprejenie"
+    }
   }
 }
 ```
@@ -852,77 +895,7 @@ curl -X GET "https://api.fit.bg/webhook?isSuccess=true&message=Club:Bulgaria;Zon
 
 ---
 
-### POST /webhook/report
-
-Receive report request webhook.
-
-**Authentication:** Not required (IP whitelist validation)
-
-**Request Body:**
-```json
-{
-  "type": "daily",
-  "device": "123"
-}
-```
-
-**Request Body (Period Report):**
-```json
-{
-  "type": "period",
-  "device": "123",
-  "startDate": "01-01-2024",
-  "endDate": "31-01-2024"
-}
-```
-
-**Request Body (Custom Command):**
-```json
-{
-  "type": "cmd",
-  "device": "123"
-}
-```
-
-**Request Body (Daily X):**
-```json
-{
-  "type": "daily-X",
-  "device": "123"
-}
-```
-
-**Request Body (Spad Naprejenie):**
-```json
-{
-  "type": "spad-naprejenie",
-  "device": "123"
-}
-```
-
-**Request Headers:**
-```
-x-real-ip: {client_ip_address}
-Content-Type: application/json
-```
-
-**Response: 200 OK**
-```json
-{
-  "success": true
-}
-```
-
-**cURL Example:**
-```bash
-curl -X POST https://api.fit.bg/webhook/report \
-  -H "Content-Type: application/json" \
-  -H "x-real-ip: 213.91.159.250" \
-  -d '{
-    "type": "daily",
-    "device": "123"
-  }'
-```
+**Note:** The `POST /webhook/report` endpoint is **NOT implemented**. All report types (daily, period, cmd, daily-X, spad-naprejenie) are triggered by the client (frontend) via the authenticated API endpoint `POST /api/devices/:id/command`, not via webhook. This ensures proper authentication and authorization for report generation.
 
 ---
 
@@ -1037,7 +1010,7 @@ Authorization: Bearer {token}
 
 ### GET /api/system/debug/socket/:socketId
 
-Open/unlock a socket connection (Super Admin only).
+Open/unlock a socket connection (Super Admin only). This endpoint exists for compatibility with the old system. In the current implementation, sockets are automatically managed by the ConnectionManager.
 
 **Authentication:** Required (Bearer token, Super role)
 
@@ -1059,6 +1032,17 @@ Authorization: Bearer {token}
   "data": {
     "message": "Socket unlocked",
     "socketId": "123"
+  }
+}
+```
+
+**Response: 404 Not Found**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Socket not found or not connected"
   }
 }
 ```

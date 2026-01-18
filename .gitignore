@@ -122,3 +122,5 @@ storybook-static/
 *.key
 *.cert
 
+# Plans
+plans/
