@@ -1,5 +1,6 @@
 import { Command, CommandType, CommandStatus, ICommandDocument } from '../models';
 import logger from '../config/winston';
+import type { ConnectionManager } from '../managers/ConnectionManager';
 
 // Server command message format (matches protocol documentation)
 export interface ServerCommand {
@@ -19,12 +20,12 @@ export interface ServerCommand {
  */
 class CommandService {
   // Store connection manager reference (will be set in Phase 5)
-  private connectionManager: any = null;
+  private connectionManager: ConnectionManager | null = null;
 
   /**
    * Set connection manager (called from Phase 5)
    */
-  setConnectionManager(connectionManager: any): void {
+  setConnectionManager(connectionManager: ConnectionManager): void {
     this.connectionManager = connectionManager;
   }
 
@@ -268,6 +269,11 @@ class CommandService {
           device: deviceId,
           action: commandMessage.Action,
         });
+        
+        // Update device status to processing
+        this.connectionManager.updateDeviceStatus(deviceId, {
+          status: 'processing',
+        });
       }
     } else {
       logger.warn('Connection manager not available, command queued', {
@@ -315,10 +321,47 @@ class CommandService {
   }
 
   /**
+   * Get pending commands count for a device (alias for getPendingCount)
+   */
+  async getPendingCommandsCount(deviceId: string): Promise<number> {
+    return this.getPendingCount(deviceId);
+  }
+
+  /**
+   * Get last command for a device
+   */
+  async getLastCommand(deviceId: string): Promise<ICommandDocument | null> {
+    return Command.findOne({ deviceId })
+      .sort({ ts: -1 })
+      .exec();
+  }
+
+  /**
    * Get command by ID
    */
   async getCommandById(commandId: string): Promise<ICommandDocument | null> {
     return Command.findById(commandId).exec();
+  }
+
+  /**
+   * Get command statistics
+   */
+  async getCommandStatistics(): Promise<{
+    pending: number;
+    processing: number;
+    completed: number;
+  }> {
+    const [pending, completed, error] = await Promise.all([
+      Command.countDocuments({ status: CommandStatus.PENDING }).exec(),
+      Command.countDocuments({ status: CommandStatus.COMPLETE }).exec(),
+      Command.countDocuments({ status: CommandStatus.ERROR }).exec(),
+    ]);
+
+    return {
+      pending,
+      processing: 0, // Commands are processed immediately, no "processing" state
+      completed: completed + error, // Count both complete and error as "completed"
+    };
   }
 }
 

@@ -1,4 +1,7 @@
 import { eventService } from './EventService';
+import { commandService } from './CommandService';
+import { deviceService } from './DeviceService';
+import { connectionManager } from '../managers/ConnectionManager';
 import logger from '../config/winston';
 
 /**
@@ -12,6 +15,10 @@ export const initializeServices = async (): Promise<void> => {
     // Setup event handlers in EventService
     // This will register handlers that route events to CommandService
     eventService.setupEventHandlers();
+
+    // Set ConnectionManager in services (will be fully initialized in Phase 5)
+    commandService.setConnectionManager(connectionManager);
+    deviceService.setConnectionManager(connectionManager);
 
     logger.info('Services initialized successfully');
   } catch (error: unknown) {

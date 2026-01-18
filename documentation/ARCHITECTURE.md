@@ -28,8 +28,9 @@ The Receipt System is a real-time receipt printing and device management platfor
 - Maintains device online/offline status in real-time
 
 **Technology Stack:**
-- **Backend**: Node.js + TypeScript, Express.js, Socket.io, MongoDB
-- **Frontend**: React + TypeScript, Socket.io-client, JWT Authentication
+- **Backend**: Node.js + TypeScript, Express.js, WebSocket (ws package), MongoDB
+- **Frontend**: React + TypeScript, WebSocket client, JWT Authentication
+- **WebSocket**: Raw WebSocket protocol (ws package) with express-ws for Express integration
 - **Build Tool**: Vite (frontend build and bundling)
 - **Deployment**: Node.js server serves built frontend static files
 - **Protocol**: Custom WebSocket JSON protocol for device communication
@@ -123,7 +124,9 @@ External System → Webhook → Event Emitter → Command Service → WebSocket 
 │  │              Connection Manager                           │  │
 │  │  - Device Connections (Map<deviceId, WebSocket>)          │  │
 │  │  - Client Connections (Set<WebSocket>)                  │  │
-│  │  - Online Status Tracking                               │  │
+│  │  - Device Status Tracking (Map<deviceId, DeviceStatus>)   │  │
+│  │  - Ping Intervals (Map<deviceId, Timeout>)                │  │
+│  │  - Message Broadcasting                                  │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                                                                  │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -224,6 +227,7 @@ graph TB
         ReceiptCtrl[Receipt Controller]
         DeviceCtrl[Device Controller]
         WebhookCtrl[Webhook Controller]
+        SystemCtrl[System Controller]
     end
     
     subgraph "Service Layer"
@@ -244,19 +248,28 @@ graph TB
     subgraph "Infrastructure"
         ConnMgr[Connection Manager]
         WS_Server[WebSocket Server]
+        DeviceHandler[Device Handler]
+        ClientHandler[Client Handler]
         MongoDB[(MongoDB)]
     end
     
     REST --> AuthCtrl
     REST --> ReceiptCtrl
     REST --> DeviceCtrl
-    WS_Route --> ConnMgr
+    REST --> SystemCtrl
+    WS_Route --> DeviceHandler
+    WS_Route --> ClientHandler
+    DeviceHandler --> ConnMgr
+    ClientHandler --> ConnMgr
     Webhook --> WebhookCtrl
     
     AuthCtrl --> AuthSvc
     ReceiptCtrl --> ReceiptSvc
     DeviceCtrl --> DeviceSvc
+    DeviceCtrl --> CommandSvc
     WebhookCtrl --> EventSvc
+    SystemCtrl --> DeviceSvc
+    SystemCtrl --> CommandSvc
     
     ReceiptSvc --> ReceiptModel
     CommandSvc --> CommandModel
@@ -270,6 +283,8 @@ graph TB
     
     EventSvc --> CommandSvc
     CommandSvc --> ConnMgr
+    DeviceHandler --> ConnMgr
+    ClientHandler --> ConnMgr
     ConnMgr --> WS_Server
 ```
 
@@ -328,49 +343,82 @@ class WebhookController {
 
 **Purpose**: Manages all WebSocket connections (devices and clients)
 
+**Location**: `server/src/managers/ConnectionManager.ts`
+
 **Responsibilities**:
-- Track device connections by ID
-- Track client (frontend) connections
+- Track device connections by ID (Map<deviceId, WebSocket>)
+- Track client (frontend) connections (Set<WebSocket>)
+- Track device status (online/offline, lastSeen, processing status)
 - Send messages to specific devices
 - Broadcast to all clients
 - Monitor connection status
-- Handle ping/pong for keepalive
+- Handle ping/pong for keepalive (15 second interval)
+- Manage ping intervals per device
 
-**Pseudo Code**:
+**Implementation Details**:
+
+The ConnectionManager is implemented as a singleton class with the following structure:
+
 ```typescript
 class ConnectionManager {
+  // Device connections: deviceId -> WebSocket
   private deviceConnections: Map<string, WebSocket> = new Map();
+  
+  // Client connections: Set of WebSocket instances
   private clientConnections: Set<WebSocket> = new Set();
+  
+  // Device status tracking: deviceId -> DeviceStatus
   private deviceStatus: Map<string, DeviceStatus> = new Map();
+  
+  // Ping intervals: deviceId -> NodeJS.Timeout
+  private pingIntervals: Map<string, NodeJS.Timeout> = new Map();
   
   // Register device connection
   registerDevice(deviceId: string, ws: WebSocket): void {
+    // Remove existing connection if any
+    this.removeDevice(deviceId);
+    
+    // Register new connection
     this.deviceConnections.set(deviceId, ws);
-    this.deviceStatus.set(deviceId, { online: true, lastSeen: Date.now() });
     
-    // Send connection confirmation
-    this.sendToDevice(deviceId, { type: 'CONNECTED' });
-    
-    // Broadcast status to clients
-    this.broadcastToClients({
-      type: 'device_status',
-      deviceId,
-      status: 'online'
+    // Update status
+    this.deviceStatus.set(deviceId, {
+      online: true,
+      lastSeen: new Date(),
+      status: 'ready',
     });
     
-    // Start ping interval
+    // Send connection confirmation (string "CONNECTED")
+    this.sendToDevice(deviceId, 'CONNECTED');
+    
+    // Start ping interval (15 seconds)
     this.startPingInterval(deviceId, ws);
+    
+    // Broadcast device online status to clients
+    this.broadcastDeviceStatus(deviceId, true);
   }
   
-  // Send command to specific device
-  sendToDevice(deviceId: string, command: ServerCommand): boolean {
+  // Send message to specific device
+  sendToDevice(deviceId: string, message: string | object): boolean {
     const ws = this.deviceConnections.get(deviceId);
+    
     if (!ws || ws.readyState !== WebSocket.OPEN) {
       return false;
     }
     
     try {
-      ws.send(JSON.stringify(command));
+      const messageStr = typeof message === 'string' ? message : JSON.stringify(message);
+      ws.send(messageStr);
+      
+      // Update last seen
+      const status = this.deviceStatus.get(deviceId);
+      if (status) {
+        this.deviceStatus.set(deviceId, {
+          ...status,
+          lastSeen: new Date(),
+        });
+      }
+      
       return true;
     } catch (error) {
       this.removeDevice(deviceId);
@@ -378,16 +426,20 @@ class ConnectionManager {
     }
   }
   
-  // Broadcast to all frontend clients
-  broadcastToClients(data: any): void {
-    const message = JSON.stringify(data);
-    this.clientConnections.forEach(client => {
-      if (client.readyState === WebSocket.OPEN) {
+  // Broadcast to all frontend clients (or specific client)
+  broadcastToClients(message: ClientBroadcastMessage, targetSocket?: WebSocket): void {
+    const targets = targetSocket ? [targetSocket] : Array.from(this.clientConnections);
+    const messageStr = JSON.stringify(message);
+    
+    targets.forEach((ws) => {
+      if (ws.readyState === WebSocket.OPEN) {
         try {
-          client.send(message);
+          ws.send(messageStr);
         } catch (error) {
-          this.clientConnections.delete(client);
+          this.clientConnections.delete(ws);
         }
+      } else {
+        this.clientConnections.delete(ws);
       }
     });
   }
@@ -399,19 +451,116 @@ class ConnectionManager {
   
   // Remove device connection
   removeDevice(deviceId: string): void {
-    this.deviceConnections.delete(deviceId);
-    this.deviceStatus.set(deviceId, { online: false, lastSeen: Date.now() });
+    const socket = this.deviceConnections.get(deviceId);
     
-    this.broadcastToClients({
-      type: 'device_status',
-      deviceId,
-      status: 'offline'
-    });
+    if (socket) {
+      // Clear ping interval
+      const interval = this.pingIntervals.get(deviceId);
+      if (interval) {
+        clearInterval(interval);
+        this.pingIntervals.delete(deviceId);
+      }
+      
+      // Remove connection
+      this.deviceConnections.delete(deviceId);
+      
+      // Update status
+      const status = this.deviceStatus.get(deviceId);
+      if (status) {
+        this.deviceStatus.set(deviceId, {
+          ...status,
+          online: false,
+          lastSeen: new Date(),
+        });
+      }
+      
+      // Broadcast device offline status to clients
+      this.broadcastDeviceStatus(deviceId, false);
+    }
+  }
+  
+  // Start ping interval for device (15 seconds)
+  private startPingInterval(deviceId: string, ws: WebSocket): void {
+    const interval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        this.sendToDevice(deviceId, { Action: 'ping' });
+      } else {
+        clearInterval(interval);
+        this.pingIntervals.delete(deviceId);
+        this.removeDevice(deviceId);
+      }
+    }, 15000); // 15 seconds
+    
+    this.pingIntervals.set(deviceId, interval);
   }
 }
 ```
 
-### 3. Command Service
+**Key Features**:
+- **Singleton Pattern**: Single instance exported as `connectionManager`
+- **Device Status Tracking**: Tracks online/offline, lastSeen, and processing status (ready/processing/error/noPaper)
+- **Ping/Pong Keepalive**: Automatic ping every 15 seconds per device
+- **Connection Cleanup**: Automatic cleanup of ping intervals and status on disconnect
+- **Broadcast Support**: Can broadcast to all clients or target specific client
+- **Type Safety**: Full TypeScript types for all message formats
+
+**Integration**:
+- Used by `CommandService` to send commands to devices
+- Used by `DeviceService` to check device online status
+- Used by `EventService` to broadcast receipt events to clients
+- Used by device and client WebSocket handlers for connection management
+
+### 3. WebSocket Handlers
+
+**Purpose**: Handle WebSocket connections for devices and clients
+
+**Location**: `server/src/handlers/`
+
+**Components**:
+- **Device Handler** (`device-handler.ts`): Handles device connections at `/ws/:deviceId`
+- **Client Handler** (`client-handler.ts`): Handles client connections at `/client`
+
+#### Device Handler
+
+**Responsibilities**:
+- Validate device ID against database
+- Register device connection with ConnectionManager
+- Process pending commands on connect
+- Handle device messages (status responses, noPaper alerts)
+- Update device status in database
+- Handle device disconnection
+
+**Connection Flow**:
+1. Device connects to `/ws/:deviceId`
+2. Handler validates device exists in database
+3. Registers connection with ConnectionManager
+4. Updates device status in database
+5. Processes pending commands after 1 second delay
+6. Sets up message handlers for status responses
+7. Handles disconnect and cleanup
+
+**Message Handling**:
+- **Status Responses**: Updates command status, processes next pending command
+- **No Paper Alerts**: Broadcasts to clients, updates device status
+- **Ping**: Updates lastSeen timestamp
+
+#### Client Handler
+
+**Responsibilities**:
+- Register client connection with ConnectionManager
+- Handle client disconnection
+- Send connection confirmation message
+
+**Connection Flow**:
+1. Client connects to `/client`
+2. Handler registers connection with ConnectionManager
+3. ConnectionManager sends confirmation message
+4. Handler sets up disconnect handler
+5. Client receives real-time updates via ConnectionManager broadcasts
+
+**Note**: Client authentication is optional and can be added later via JWT token validation.
+
+### 4. Command Service
 
 **Purpose**: Manages command queue and processing
 
@@ -537,7 +686,7 @@ class CommandService {
 }
 ```
 
-### 4. Event Service
+### 5. Event Service
 
 **Purpose**: Centralized event emission and handling
 
@@ -611,7 +760,7 @@ class EventService extends EventEmitter {
 }
 ```
 
-### 5. Device Service
+### 6. Device Service
 
 **Purpose**: Manages device information and status
 
@@ -706,29 +855,39 @@ class DeviceService {
 
 ```
 1. Device connects → /ws/:deviceId
-   ├─ Extract deviceId from URL
-   └─ Create WebSocket connection
+   ├─ Device Handler receives connection
+   ├─ Extract deviceId from URL parameter
+   └─ Validate device exists in database
 
-2. Connection Manager
-   ├─ Register device in Map
-   ├─ Set status: online
-   ├─ Send "CONNECTED" message
-   └─ Start ping interval (15s)
+2. Connection Manager Registration
+   ├─ Register device in Map<deviceId, WebSocket>
+   ├─ Set status: online, ready
+   ├─ Send "CONNECTED" string message
+   ├─ Start ping interval (15s)
+   └─ Broadcast device online status to clients
 
-3. Process Pending Commands
+3. Device Service Update
+   ├─ Update device status in database (online: true)
+   └─ Update lastSeen timestamp
+
+4. Process Pending Commands
+   ├─ Wait 1 second (allow connection to stabilize)
    ├─ Query pending commands for device
-   ├─ If found, send immediately
+   ├─ If found, send via ConnectionManager
    └─ Otherwise, wait for new commands
 
-4. Keepalive
-   ├─ Every 15s: Send ping
-   ├─ Device responds (implicit pong)
-   └─ If no response, mark offline
+5. Keepalive (Ping/Pong)
+   ├─ Every 15s: ConnectionManager sends ping
+   ├─ Device connection maintained (implicit pong)
+   ├─ Update lastSeen on ping
+   └─ If connection closed, mark offline
 
-5. Device Disconnection
-   ├─ Remove from connection Map
-   ├─ Set status: offline
-   └─ Broadcast to clients
+6. Device Disconnection
+   ├─ Device Handler receives close event
+   ├─ ConnectionManager removes device
+   ├─ Clear ping interval
+   ├─ Update device status in database (online: false)
+   └─ Broadcast device offline status to clients
 ```
 
 ---
@@ -737,7 +896,17 @@ class DeviceService {
 
 ### Protocol Specification
 
-The system uses a custom JSON-based protocol over WebSocket for device communication.
+The system uses a custom JSON-based protocol over WebSocket for device communication. The implementation uses the `ws` package (raw WebSocket) with `express-ws` for Express integration, matching device expectations for raw WebSocket protocol (not Socket.IO).
+
+**WebSocket Endpoints**:
+- **Device Connections**: `WS /ws/:deviceId` - Handled by `device-handler.ts`
+- **Client Connections**: `WS /client` - Handled by `client-handler.ts`
+
+**Connection Management**:
+- All connections managed by `ConnectionManager` singleton
+- Device connections tracked in `Map<deviceId, WebSocket>`
+- Client connections tracked in `Set<WebSocket>`
+- Automatic ping/pong keepalive (15 second interval)
 
 ### Message Types
 
@@ -946,9 +1115,29 @@ Headers: { Authorization: "Bearer <token>" }
 Response: { online: boolean, lastSeen: Date }
 
 POST   /api/devices/:id/command
-Body: { type: 'dailyReport' | 'periodReport' | 'customCmd', ... }
+Body: { type: 'daily' | 'period' | 'cmd' | 'daily-X' | 'spad-naprejenie', startDate?, endDate?, commandId?, data? }
+Headers: { Authorization: "Bearer <token>" } (Admin role required)
+Response: { commandId: string, deviceId: string, type: string, status: string, createdAt: string }
+```
+
+#### System
+
+```
+GET    /api/system/status
 Headers: { Authorization: "Bearer <token>" }
-Response: { commandId: string }
+Response: { status: string, uptime: number, version: string, database: {...}, devices: {...}, commands: {...} }
+
+GET    /api/system/debug
+Headers: { Authorization: "Bearer <token>" } (Super role required)
+Response: { sockets: [...], connections: {...} }
+
+POST   /api/system/restart
+Headers: { Authorization: "Bearer <token>" } (Super role required)
+Response: { message: string }
+
+GET    /api/system/debug/socket/:socketId
+Headers: { Authorization: "Bearer <token>" } (Super role required)
+Response: { message: string, socketId: string }
 ```
 
 #### Webhooks
@@ -958,9 +1147,8 @@ GET    /webhook
 Query: ?isSuccess=true&message=...
 Response: { success: boolean }
 
-POST   /webhook/report
-Body: { type: string, device: string, ... }
-Response: { success: boolean }
+Note: Report types (daily, period, cmd, daily-X, spad-naprejenie) are NOT handled via webhook.
+All report types are triggered by the client (frontend) via POST /api/devices/:id/command.
 ```
 
 ### WebSocket Endpoints
@@ -983,7 +1171,8 @@ WS     /client
   "success": true,
   "data": { ... },
   "meta": {
-    "timestamp": "2024-01-15T10:30:00Z"
+    "timestamp": "2024-01-15T10:30:00Z",
+    "requestId": "req_123456789"
   }
 }
 ```
@@ -996,6 +1185,10 @@ WS     /client
     "code": "ERROR_CODE",
     "message": "Human readable error message",
     "details": { ... }
+  },
+  "meta": {
+    "timestamp": "2024-01-15T10:30:00Z",
+    "requestId": "req_123456789"
   }
 }
 ```
@@ -1098,6 +1291,90 @@ Device.index({ deviceId: 1 }, { unique: true });
 User.index({ email: 1 }, { unique: true });
 User.index({ username: 1 }, { unique: true });
 ```
+
+---
+
+## Middleware Architecture
+
+### Request Processing Pipeline
+
+The Express application uses middleware in the following order:
+
+1. **CORS Middleware** - Handles cross-origin requests
+2. **Body Parsers** - Parses JSON and URL-encoded request bodies
+3. **Request ID Middleware** - Adds unique request ID to each request
+4. **Request Logging** - Logs all incoming requests
+5. **API Routes** - Handles `/api/*` routes
+6. **Webhook Routes** - Handles `/webhook` routes
+7. **Static File Serving** - Serves frontend build files
+8. **Error Handler** - Catches and formats errors
+
+### Authentication Middleware
+
+**Location**: `server/src/middleware/auth.ts`
+
+**JWT Authentication Middleware** (`authenticate`):
+- Validates JWT token from `Authorization: Bearer {token}` header
+- Extracts user information from token
+- Attaches user object to request (`req.user`)
+- Returns `401 Unauthorized` if token is missing or invalid
+
+**Role-Based Authorization Middleware** (`authorize`):
+- Checks if user has required role(s)
+- Used for protecting Admin/Super endpoints
+- Returns `403 Forbidden` if user lacks required permissions
+- Supports multiple roles: `authorize('Admin', 'Super')`
+
+### Validation Middleware
+
+**Location**: `server/src/middleware/validation.ts`
+
+**Validation Factory** (`validate`):
+- Validates request body, query parameters, and URL parameters
+- Uses validator functions that return `true` on success or error message string on failure
+- Returns `422 Unprocessable Entity` with validation error details
+
+**Common Validators**:
+- `required` - Field must be present and non-empty
+- `string` - Value must be a string
+- `number` - Value must be a number
+- `email` - Value must be a valid email address
+- `minLength(min)` - String must be at least `min` characters
+- `date` - Value must be a valid ISO 8601 date
+- `oneOf(allowed)` - Value must be one of the allowed values
+- `boolean` - Value must be a boolean
+
+### IP Whitelist Utility
+
+**Location**: `server/src/utils/ip-whitelist.ts`
+
+**Purpose**: Validates webhook requests against IP whitelist
+
+**Functions**:
+- `getWhitelistedIPs()` - Returns list of whitelisted IP addresses
+- `isIPWhitelisted(ip)` - Checks if IP is whitelisted
+- `getClientIP(req)` - Extracts client IP from request (handles proxy headers)
+
+**Configuration**: IPs stored in `WEBHOOK_IPS` environment variable (comma-separated)
+
+### API Response Helpers
+
+**Location**: `server/src/utils/api-response.ts`
+
+**Success Response Helper** (`sendSuccess`):
+- Formats standardized success response
+- Includes data, timestamp, and request ID
+- Sets HTTP status code (default: 200)
+
+**Error Response Helper** (`sendError`):
+- Formats standardized error response
+- Includes error code, message, optional details, timestamp, and request ID
+- Sets appropriate HTTP status code
+
+**Request ID Middleware** (`requestIdMiddleware`):
+- Generates unique UUID for each request
+- Adds `X-Request-ID` header to response
+- Attaches request ID to request object for logging
 
 ---
 
@@ -1352,7 +1629,7 @@ npm run dev
    mkdir receipt-ts
    cd receipt-ts
    npm init -y
-   npm install express socket.io mongoose jsonwebtoken
+   npm install express ws express-ws mongoose jsonwebtoken
    npm install -D typescript @types/node @types/express ts-node concurrently chokidar-cli
    ```
 
@@ -1774,8 +2051,8 @@ app.use(express.static(path.join(__dirname, '../public'), {
 // API routes (must be before catch-all)
 app.use('/api', apiRoutes);
 
-// WebSocket routes (handled by Socket.IO)
-// Socket.IO attaches to the HTTP server separately
+// WebSocket routes (handled by express-ws)
+// express-ws adds WebSocket support to Express routes
 
 // Webhook routes
 app.get('/webhook', webhookHandler);
@@ -1796,13 +2073,13 @@ app.get('*', (req, res) => {
 **Route Priority:**
 1. Static assets (JS, CSS, images) - served from `public/` directory
 2. API routes (`/api/*`) - handled by Express routes
-3. WebSocket routes (`/ws/*`) - handled by Socket.IO
+3. WebSocket routes (`/ws/*`, `/client`) - handled by express-ws
 4. Webhook routes (`/webhook`) - handled by Express routes
 5. All other routes - serve `index.html` for React Router
 
 **This ensures:**
 - API routes (`/api/*`) are handled by Express
-- WebSocket routes (`/ws/*`) are handled by Socket.IO
+- WebSocket routes (`/ws/*`, `/client`) are handled by express-ws
 - Static assets are served efficiently with caching
 - All other routes serve the React SPA (handled by React Router)
 - Single deployment unit (no separate frontend server needed)

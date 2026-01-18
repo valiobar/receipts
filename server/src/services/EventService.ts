@@ -1,6 +1,7 @@
 import { EventEmitter } from 'events';
 import logger from '../config/winston';
 import { commandService } from './CommandService';
+import { connectionManager } from '../managers/ConnectionManager';
 
 // Event data interfaces
 export interface ReceiptEventData {
@@ -43,14 +44,14 @@ export enum EventType {
  * Extends EventEmitter to provide typed event system
  */
 class EventService extends EventEmitter {
+  private handlersSetup: boolean = false;
+
   constructor() {
     super();
     this.setMaxListeners(50); // Allow up to 50 listeners per event
     logger.info('EventService initialized');
-    // Setup event handlers after initialization
-    // Note: This will be called after all services are initialized
-    // For now, we'll set it up immediately, but it can be called later if needed
-    this.setupEventHandlers();
+    // Note: setupEventHandlers() is called from initializeServices()
+    // after all services are initialized to avoid duplicate handler registration
   }
 
   /**
@@ -104,6 +105,18 @@ class EventService extends EventEmitter {
    * This method is called after all services are initialized
    */
   setupEventHandlers(): void {
+    // Prevent duplicate handler registration
+    if (this.handlersSetup) {
+      logger.warn('Event handlers already setup, skipping duplicate registration');
+      return;
+    }
+
+    // Remove any existing listeners to ensure clean state
+    this.removeAllListeners(EventType.RECEIPT);
+    this.removeAllListeners(EventType.DAILY_REPORT);
+    this.removeAllListeners(EventType.PERIOD_REPORT);
+    this.removeAllListeners(EventType.CUSTOM_COMMAND);
+
     // Receipt event handler
     this.on(EventType.RECEIPT, async (data: ReceiptEventData) => {
       try {
@@ -122,7 +135,15 @@ class EventService extends EventEmitter {
           user: data.user,
         });
 
-        // Note: Broadcasting to clients will be handled in Phase 5 via ConnectionManager
+        // Broadcast receipt event to clients (matches protocol - no type wrapper)
+        connectionManager.broadcastToClients({
+          MessageId: command._id.toString(),
+          UnicSaleNum: command.clubReceiptN?.toString() || '0',
+          action: 'print',
+          price: command.amount || '0',
+          user: command.userNumber || '',
+          location: command.location || '',
+        });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (errorMessage === 'Duplicate receipt for same user') {
@@ -202,6 +223,7 @@ class EventService extends EventEmitter {
       }
     });
 
+    this.handlersSetup = true;
     logger.info('Event handlers registered');
   }
 }

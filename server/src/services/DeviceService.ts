@@ -43,10 +43,13 @@ class DeviceService {
     online?: boolean;
     location?: string;
   }): Promise<DeviceWithStatus[]> {
-    const query: any = {};
+    const query: Record<string, unknown> = {};
 
     if (filters?.location) {
-      query.location = { $regex: filters.location, $options: 'i' };
+      query.$or = [
+        { location: filters.location },
+        { name: filters.location },
+      ];
     }
 
     const devices = await Device.find(query).exec();
@@ -54,28 +57,25 @@ class DeviceService {
       ? this.connectionManager.getOnlineDevices()
       : [];
 
-    const devicesWithStatus: DeviceWithStatus[] = devices.map((device) => {
+    let result = devices.map((device) => {
       const isOnline = onlineDevices.includes(device.deviceId);
-      const deviceObj = device.toObject() as DeviceWithStatus;
-      deviceObj.online = isOnline;
-      
-      // Get last seen from connection manager if available
-      if (this.connectionManager) {
-        const deviceStatus = this.connectionManager.getDeviceStatus(device.deviceId);
-        if (deviceStatus) {
-          deviceObj.lastSeen = deviceStatus.lastSeen;
-        }
-      }
+      const deviceStatus = this.connectionManager
+        ? this.connectionManager.getDeviceStatus(device.deviceId)
+        : null;
 
-      return deviceObj;
+      return {
+        ...device.toObject(),
+        online: isOnline,
+        lastSeen: deviceStatus?.lastSeen || device.lastSeen,
+      } as DeviceWithStatus;
     });
 
     // Filter by online status if specified
     if (filters?.online !== undefined) {
-      return devicesWithStatus.filter((device) => device.online === filters.online);
+      result = result.filter((device) => device.online === filters.online);
     }
 
-    return devicesWithStatus;
+    return result;
   }
 
   /**

@@ -1,12 +1,12 @@
 import http from 'http';
 import mongoose from 'mongoose';
-import { Server as SocketIOServer } from 'socket.io';
 import { env } from './utils/env';
 import logger from './config/winston';
 import { connectDatabase } from './config/database';
 import { createApp } from './config/express';
 import { errorHandler } from './middleware/error-handler';
 import { initializeServices } from './services/initialize';
+import { setupDeviceHandler, setupClientHandler } from './handlers';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -22,26 +22,21 @@ const startServer = async (): Promise<void> => {
     // 3. Create Express app
     const app = createApp();
 
-    // 4. Create HTTP server
+    // 4. Create HTTP server (needed for express-ws)
     const server = http.createServer(app);
 
-    // 5. Initialize Socket.IO (basic setup, full implementation in Phase 5)
-    const io = new SocketIOServer(server, {
-      cors: {
-        origin: '*',
-        methods: ['GET', 'POST'],
-      },
-      transports: ['websocket', 'polling'],
-    });
+    // 5. Initialize express-ws once (must be done before setting up routes)
+    // eslint-disable-next-line @typescript-eslint/no-var-requires
+    require('express-ws')(app, server);
 
-    // Store io instance for use in Phase 5
-    // This will be exported from a connection manager in Phase 5
-    (app as any).io = io;
+    // 6. Setup WebSocket handlers (after express-ws initialization)
+    setupDeviceHandler(app, server);
+    setupClientHandler(app, server);
 
-    // 6. Apply error handler middleware (must be last)
+    // 7. Apply error handler middleware (must be last)
     app.use(errorHandler);
 
-    // 7. Start HTTP server
+    // 8. Start HTTP server
     server.listen(env.port, () => {
       logger.info('Server started successfully', {
         port: env.port,
@@ -50,16 +45,12 @@ const startServer = async (): Promise<void> => {
       });
     });
 
-    // 8. Graceful shutdown handlers
+    // 9. Graceful shutdown handlers
     const shutdown = async (signal: string) => {
       logger.info(`Received ${signal}, shutting down gracefully...`);
 
       server.close(() => {
         logger.info('HTTP server closed');
-      });
-
-      io.close(() => {
-        logger.info('Socket.IO server closed');
       });
 
       // Close database connection

@@ -69,6 +69,8 @@ External System ──HTTP GET──> Webhook Endpoint ──Event──> Server
 GET /webhook
 ```
 
+**Important Note:** This endpoint handles **receipt webhooks only**. Report types (daily, period, cmd, daily-X, spad-naprejenie) are **NOT** handled via webhook. All report types are triggered by the client (frontend) via the authenticated API endpoint `POST /api/devices/:id/command`. This ensures proper authentication and authorization for report generation.
+
 ### Request Format
 
 **URL Structure:**
@@ -229,6 +231,10 @@ function extractValue(param: string, key: string): string {
 | Membership fee <= 0 | 200 | `{success: true}` | Ignore, log |
 | Server error | 500 | `{success: false}` | Log error, alert |
 
+### Report Webhook (Not Implemented)
+
+**Note:** The `POST /webhook/report` endpoint is **NOT implemented**. All report types (daily, period, cmd, daily-X, spad-naprejenie) are triggered by the client (frontend) via the authenticated API endpoint `POST /api/devices/:id/command`, not via webhook. This ensures proper authentication and authorization for report generation.
+
 ---
 
 ## Server to Device Protocol
@@ -250,15 +256,21 @@ wss://server:port/ws/123  (SSL)
 
 **Connection Flow:**
 1. Device initiates WebSocket connection to `/ws/{deviceId}`
-2. Server validates device ID exists
-3. Server sends connection confirmation
-4. Server starts ping interval (15 seconds)
-5. Server processes any pending commands
+2. Device Handler (`device-handler.ts`) receives connection
+3. Server validates device ID exists in database (Device model)
+4. If invalid, connection closed with code 1008
+5. ConnectionManager registers device connection
+6. Server sends connection confirmation (string "CONNECTED")
+7. ConnectionManager starts ping interval (15 seconds)
+8. Device status updated in database (online: true)
+9. Server processes any pending commands after 1 second delay
+10. ConnectionManager broadcasts device online status to clients
 
 **Connection Confirmation Message:**
-```json
+```
 "CONNECTED"
 ```
+(Note: Sent as plain string, not JSON object)
 
 ### Message Types
 
@@ -593,7 +605,56 @@ sequenceDiagram
 }
 ```
 
-#### 4. Ping Response
+#### 4. Spad Naprejenie (Voltage Drop) Event
+
+**Purpose:** Report voltage drop condition from device
+
+**Message Format:**
+```json
+{
+  "Action": "spad-naprejenie"
+}
+```
+
+OR
+
+```json
+{
+  "Status": "spad-naprejenie"
+}
+```
+
+**Field Specifications:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `Action` | string | Yes* | Must be `"spad-naprejenie"` (alternative format) |
+| `Status` | string | Yes* | Must be `"spad-naprejenie"` (alternative format) |
+
+*Either `Action` or `Status` field can be used to indicate voltage drop event.
+
+**Server Processing:**
+1. Log voltage drop alert from device
+2. Broadcast to all frontend clients
+3. Update device last seen timestamp
+4. Continue processing (device still online)
+
+**Example:**
+```json
+{
+  "Action": "spad-naprejenie"
+}
+```
+
+OR
+
+```json
+{
+  "Status": "spad-naprejenie"
+}
+```
+
+#### 5. Ping Response
 
 **Purpose:** Implicit response to ping (connection maintained)
 
@@ -618,6 +679,13 @@ function handleDeviceMessage(ws: WebSocket, message: string, deviceId: string) {
   
   // Handle ping (no action needed, connection is pong)
   if (msg.Action === 'ping') {
+    ws.closed = false;
+    return;
+  }
+  
+  // Handle spad-naprejenie (voltage drop) event
+  if (msg.Action === 'spad-naprejenie' || msg.Status === 'spad-naprejenie') {
+    await handleSpadNaprejenie(deviceId);
     ws.closed = false;
     return;
   }
@@ -686,8 +754,16 @@ ws://server:port/client
 wss://server:port/client  (SSL)
 ```
 
+**Connection Flow:**
+1. Client initiates WebSocket connection to `/client`
+2. Client Handler (`client-handler.ts`) receives connection
+3. ConnectionManager registers client connection
+4. ConnectionManager sends connection confirmation message
+5. Client receives real-time updates via broadcasts
+
 **Authentication:**
 - No authentication required (matches receipt implementation)
+- JWT authentication can be added later via query parameter
 - Multiple clients can connect simultaneously
 
 ### Message Types
@@ -848,6 +924,44 @@ wss://server:port/client  (SSL)
 }
 ```
 
+#### 5. Spad Naprejenie (Voltage Drop) Alert
+
+**Purpose:** Notify client that device has detected a voltage drop
+
+**Message Format:**
+```json
+{
+  "type": "spad-naprejenie",
+  "location": {
+    "name": "Bulgaria",
+    "device": "123",
+    "status": true
+  }
+}
+```
+
+**Field Specifications:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `type` | string | Yes | Must be `"spad-naprejenie"` |
+| `location` | object | Yes | Device location info |
+| `location.name` | string | Yes | Location name |
+| `location.device` | string | Yes | Device ID |
+| `location.status` | boolean | Yes | Always `true` (device still online) |
+
+**Example:**
+```json
+{
+  "type": "spad-naprejenie",
+  "location": {
+    "name": "Bulgaria",
+    "device": "123",
+    "status": true
+  }
+}
+```
+
 ### Client Message Types (Client → Server)
 
 Clients can send messages to server (future feature):
@@ -880,6 +994,11 @@ Clients can send messages to server (future feature):
    - Broadcasted immediately when received
    - Device remains marked as online
    - Alert persists until paper reloaded
+
+4. **Spad Naprejenie (Voltage Drop) Alerts:**
+   - Broadcasted immediately when received from device
+   - Device remains marked as online
+   - Indicates power supply voltage drop condition
 
 ---
 
@@ -949,7 +1068,7 @@ Clients can send messages to server (future feature):
     },
     "Status": {
       "type": "string",
-      "enum": ["success", "error", "noPaper"]
+      "enum": ["success", "error", "noPaper", "spad-naprejenie"]
     },
     "MsgData": {
       "type": "string"
@@ -959,7 +1078,7 @@ Clients can send messages to server (future feature):
     },
     "Action": {
       "type": "string",
-      "enum": ["ping"]
+      "enum": ["ping", "spad-naprejenie"]
     }
   }
 }
@@ -973,7 +1092,7 @@ Clients can send messages to server (future feature):
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["info", "receipt", "connect", "noPaper"]
+      "enum": ["info", "receipt", "connect", "noPaper", "spad-naprejenie"]
     },
     "message": {
       "type": "string"
@@ -1015,6 +1134,8 @@ stateDiagram-v2
     Error --> Waiting: Process next command
     Processing --> NoPaper: Device reports no paper
     NoPaper --> Processing: Continue processing
+    Connected --> VoltageDrop: Device reports voltage drop
+    VoltageDrop --> Connected: Continue processing
 ```
 
 ### Client Connection Lifecycle
@@ -1022,13 +1143,14 @@ stateDiagram-v2
 ```mermaid
 stateDiagram-v2
     [*] --> Disconnected
-    Disconnected --> Authenticating: Client connects with token
-    Authenticating --> Connected: Token validated
-    Authenticating --> Disconnected: Token invalid
-    Connected --> Receiving: Receiving messages
+    Disconnected --> Connecting: Client connects to /client
+    Connecting --> Connected: ConnectionManager registers client
+    Connected --> Receiving: Receiving broadcast messages
     Receiving --> Connected: Message processed
     Connected --> Disconnected: Connection closed
 ```
+
+**Note**: Authentication is optional and not currently implemented. Token validation can be added in the future.
 
 ### Connection States
 
@@ -1043,6 +1165,7 @@ stateDiagram-v2
 | `Waiting` | Response received, checking queue | Process next or idle |
 | `Error` | Last command failed | Process next or retry |
 | `NoPaper` | Paper out condition | Continue processing |
+| `VoltageDrop` | Voltage drop detected | Continue processing, alert clients |
 
 #### Client States
 
@@ -1513,10 +1636,12 @@ stateDiagram-v2
 | `success` | Device → Server | Command success |
 | `error` | Device → Server | Command error |
 | `noPaper` | Device → Server | Paper out |
+| `spad-naprejenie` | Device → Server | Voltage drop event |
 | `info` | Server → Client | Connection info |
 | `receipt` | Server → Client | Receipt event |
 | `connect` | Server → Client | Device status |
 | `noPaper` | Server → Client | No paper alert |
+| `spad-naprejenie` | Server → Client | Voltage drop alert |
 
 ### Field Type Reference
 

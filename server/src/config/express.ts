@@ -3,6 +3,9 @@ import cors from 'cors';
 import path from 'path';
 import logger from './winston';
 import { env } from '../utils/env';
+import { requestIdMiddleware } from '../utils/api-response';
+import apiRoutes from '../routes';
+import webhookRoutes from '../routes/webhook-routes';
 
 export const createApp = (): Express => {
   const app = express();
@@ -25,14 +28,24 @@ export const createApp = (): Express => {
   app.use(express.json({ limit: '10mb' }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+  // Request ID middleware (must be before request logging)
+  app.use(requestIdMiddleware);
+
   // Request logging middleware
   app.use((req, res, next) => {
     logger.debug(`${req.method} ${req.path}`, {
       ip: req.ip,
       userAgent: req.get('user-agent'),
+      requestId: (req as any).requestId,
     });
     next();
   });
+
+  // API routes (must be before static file serving)
+  app.use('/api', apiRoutes);
+
+  // Webhook routes (must be before static file serving)
+  app.use('/webhook', webhookRoutes);
 
   // Static file serving (for Phase 8 - frontend build)
   const publicPath = path.join(__dirname, '../public');
