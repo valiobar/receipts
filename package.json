@@ -1,0 +1,24 @@
+{
+  "name": "receipts",
+  "version": "1.0.0",
+  "description": "Receipt management system with React frontend and Node.js backend",
+  "private": true,
+  "scripts": {
+    "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\" \"npm run dev:copy\"",
+    "dev:frontend": "cd frontend && npm run dev:watch",
+    "dev:backend": "cd server && npm run dev",
+    "dev:copy": "chokidar-cli \"frontend/dist/**/*\" -c \"npm run copy:frontend\"",
+    "copy:frontend": "cp -r frontend/dist/* server/public/",
+    "build:frontend": "cd frontend && npm run build",
+    "build:backend": "cd server && npm run build",
+    "build:all": "npm run build:frontend && npm run build:backend",
+    "deploy:copy": "cp -r frontend/dist/* server/public/",
+    "deploy": "npm run build:all && npm run deploy:copy",
+    "start": "cd server && npm start"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2",
+    "chokidar-cli": "^3.0.0"
+  }
+}
+
