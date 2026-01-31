@@ -631,7 +631,7 @@ Authorization: Bearer {token}
     "status": "ready",
     "pendingCommands": 0,
     "lastCommand": {
-      "id": "65a1b2c3d4e5f6a7b8c9d0e2",
+      "id": 12344,
       "type": "receipt",
       "status": "complete",
       "timestamp": "2024-01-15T10:25:00Z"
@@ -717,7 +717,7 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "commandId": "65a1b2c3d4e5f6a7b8c9d0e3",
+    "commandId": 12345,
     "deviceId": "123",
     "type": "dailyReport",
     "status": "pending",
@@ -731,7 +731,7 @@ Content-Type: application/json
 {
   "success": true,
   "data": {
-    "commandId": "65a1b2c3d4e5f6a7b8c9d0e3",
+    "commandId": 12345,
     "deviceId": "123",
     "type": "daily",
     "status": "pending",
@@ -1071,7 +1071,7 @@ interface Receipt {
 
 ```typescript
 interface Command {
-  _id: string;              // MongoDB ObjectId
+  _id: number;              // Auto-incremented numeric ID (not ObjectId)
   commandType: 'receipt' | 'dailyReport' | 'monthlyReport' | 'customCmd';
   deviceId: string;
   userNumber?: string;

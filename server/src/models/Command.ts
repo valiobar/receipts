@@ -1,5 +1,6 @@
 import mongoose, { Schema, Model, Document } from 'mongoose';
 import { ICommand, CommandType, CommandStatus } from './types';
+import { Counter } from './Counter';
 
 // Document interface extending ICommand (without _id) and Mongoose Document
 export interface ICommandDocument extends Omit<ICommand, '_id'>, Document {}
@@ -7,6 +8,9 @@ export interface ICommandDocument extends Omit<ICommand, '_id'>, Document {}
 // Mongoose schema definition
 const commandSchema = new Schema<ICommandDocument>(
   {
+    _id: {
+      type: Number,
+    },
     commandType: {
       type: String,
       enum: Object.values(CommandType),
@@ -82,6 +86,20 @@ commandSchema.index({ commandType: 1, ts: -1 });
 // Index for general timestamp-based queries
 commandSchema.index({ ts: -1 });
 
+// Pre-save hook: Auto-increment _id if not set
+commandSchema.pre('save', async function (next) {
+  // Only set _id if it's not already set
+  if (!this._id) {
+    try {
+      this._id = await Counter.getNextSequence('commandId');
+    } catch (error) {
+      // Log error but don't block save operation
+      console.error('Error auto-incrementing command _id:', error);
+    }
+  }
+  next();
+});
+
 // Pre-save hook: Calculate clubReceiptN for receipt commands
 commandSchema.pre('save', async function (next) {
   // Only calculate if this is a receipt command and clubReceiptN is not already set
@@ -91,7 +109,7 @@ commandSchema.pre('save', async function (next) {
       // Access model at runtime (after it's registered) to avoid circular reference
       const CommandModel = mongoose.models.Command as Model<ICommandDocument>;
       if (CommandModel) {
-        const count = await CommandModel.countDocuments({ deviceId: this.deviceId });
+        const count = await CommandModel.countDocuments({ deviceId: this.deviceId, status: CommandStatus.COMPLETE });
         // Set clubReceiptN to count + 1 (as string)
         this.clubReceiptN = (count + 1).toString();
       }
@@ -143,7 +161,7 @@ commandSchema.statics.getReceiptsForPeriod = async function (
 
 // Static method: Change command status (complete or error)
 commandSchema.statics.changeStatus = async function (
-  id: string,
+  id: number,
   isError: boolean = false
 ): Promise<ICommandDocument | null> {
   const command = await this.findById(id);
@@ -164,7 +182,7 @@ interface ICommandModel extends Model<ICommandDocument> {
     startDate: Date,
     endDate: Date
   ): Promise<ICommandDocument[]>;
-  changeStatus(id: string, isError?: boolean): Promise<ICommandDocument | null>;
+  changeStatus(id: number, isError?: boolean): Promise<ICommandDocument | null>;
 }
 
 // Export the model (must be after schema definition for pre-save hook reference)

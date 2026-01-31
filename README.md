@@ -102,16 +102,13 @@ npm install
 Create environment files for both frontend and backend:
 
 **Server `.env` file** (`server/.env`):
-```bash
-NODE_ENV=development
-PORT=3000
-MONGODB_URI=mongodb://localhost:27017/receipt
-JWT_SECRET=your-secret-key-change-in-production
-JWT_EXPIRES_IN=24h
 
-# Webhook IP whitelist (comma-separated)
-WEBHOOK_IPS=213.91.159.250,87.121.163.64
+Copy the example file and fill in your values:
+```bash
+cp server/env.example server/.env
 ```
+
+Then edit `server/.env` with your configuration. See `server/env.example` for detailed descriptions of each variable, including how to obtain BRP API credentials.
 
 **Frontend `.env` file** (`frontend/.env`):
 ```bash
@@ -304,6 +301,10 @@ See [ARCHITECTURE.md](./documentation/ARCHITECTURE.md) for Docker configuration 
 | `JWT_SECRET` | JWT signing secret | Yes | - |
 | `JWT_EXPIRES_IN` | JWT expiration time | No | `24h` |
 | `WEBHOOK_IPS` | Comma-separated IP whitelist | No | - |
+| `BRP_API_URL` | BRP Event API base URL | No | - |
+| `BRP_API_KEY` | BRP Event API authentication key | No | - |
+| `BRP_WEBHOOK_URL` | Public URL where BRP should send webhooks | No | - |
+| `BRP_WEBHOOK_SECRET` | Secret for webhook authentication | No | - |
 
 ### Frontend Environment Variables
 

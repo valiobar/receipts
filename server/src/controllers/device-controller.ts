@@ -301,8 +301,8 @@ export const sendCommand = async (req: Request, res: Response): Promise<void> =>
       return;
     }
     
-    // Process command immediately
-    await commandService.processPendingCommands(id);
+    // Note: processPendingCommands is already called in create*Command methods
+    // No need to call it again here to avoid duplicate message sending
     
     sendSuccess(req, res, {
       commandId: command._id.toString(),
