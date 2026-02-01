@@ -1,9 +1,12 @@
 import { Router } from 'express';
-import { handleReceiptWebhook } from '../controllers';
+import { handleReceiptWebhook, handleBRPWebhook } from '../controllers';
 
 const router = Router();
 
-// GET /webhook (receipt webhook)
+// POST /webhook (BRP Event API webhook)
+router.post('/', handleBRPWebhook);
+
+// GET /webhook (legacy webhook for backward compatibility)
 router.get('/', handleReceiptWebhook);
 
 // Note: POST /webhook/report is NOT implemented.

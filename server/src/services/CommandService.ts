@@ -1,14 +1,15 @@
-import { Command, CommandType, CommandStatus, ICommandDocument } from '../models';
+import { Command, CommandType, CommandStatus, ICommandDocument, Device } from '../models';
 import logger from '../config/winston';
 import type { ConnectionManager } from '../managers/ConnectionManager';
+import { ContextBuilder } from 'express-validator/lib/context-builder';
 
 // Server command message format (matches protocol documentation)
 export interface ServerCommand {
-  MessageId: string;
+  MessageId: number;  
   Action: 'print' | 'dailyReport' | 'report' | 'customcmd';
   Seq?: string; // Receipt sequence number (for print)
   Text?: string; // Receipt text (for print)
-  Price?: string; // Receipt amount (for print)
+  Price?: number; // Receipt amount (for print) - always sent as number
   StartDate?: string; // DDMMYY format (for report)
   EndDate?: string; // DDMMYY format (for report)
   CommandId?: string; // Custom command ID (for customcmd)
@@ -173,22 +174,30 @@ class CommandService {
   /**
    * Format command message for device (matches protocol documentation)
    */
-  private formatCommandMessage(command: ICommandDocument): ServerCommand {
-    const messageId = command._id.toString();
-
+  private async formatCommandMessage(command: ICommandDocument): Promise<ServerCommand> {
+    const devidePin = await Device.findOne({ deviceId: command.deviceId }).select('devicePin').exec();
+    let pin = devidePin?.devicePin ||'';
+    const operator = 'ROBO';
+    const clubReceiptN = await Command.countDocuments({ 
+      deviceId: command.deviceId, 
+      commandType: CommandType.RECEIPT,
+      status: CommandStatus.COMPLETE 
+    });
+    Command.findByIdAndUpdate(command._id, { clubReceiptN: clubReceiptN.toString() });
+    const sequenceNumber = clubReceiptN.toString().padStart(7, '0');
     switch (command.commandType) {
       case CommandType.RECEIPT:
         return {
-          MessageId: messageId,
-          Seq: command.clubReceiptN || '0',
+          MessageId: command._id,
+          Seq:  `${pin}-${operator}-${sequenceNumber}`,
           Action: 'print',
           Text: 'Ползване на фитнес и спа',
-          Price: command.amount || '0',
+          Price: parseFloat(command.amount || '0'),
         };
 
       case CommandType.DAILY_REPORT:
         return {
-          MessageId: messageId,
+          MessageId: command._id,
           Action: 'dailyReport',
         };
 
@@ -197,7 +206,7 @@ class CommandService {
           throw new Error('Start date and end date required for period report');
         }
         return {
-          MessageId: messageId,
+          MessageId: command._id,
           Action: 'report',
           StartDate: this.formatDate(command.startDate),
           EndDate: this.formatDate(command.endDate),
@@ -206,7 +215,7 @@ class CommandService {
       case CommandType.CUSTOM_CMD:
         return {
           Action: 'customcmd',
-          MessageId: messageId,
+          MessageId: command._id,
           CommandId: command.customCmdId || '',
           Data: command.dataCmd,
         };
@@ -241,7 +250,7 @@ class CommandService {
     // Format command message
     let commandMessage: ServerCommand;
     try {
-      commandMessage = this.formatCommandMessage(pendingCommand);
+      commandMessage = await this.formatCommandMessage(pendingCommand);
     } catch (error) {
       logger.error('Error formatting command message', {
         commandId: pendingCommand._id,
@@ -249,7 +258,7 @@ class CommandService {
         error,
       });
       // Mark command as error
-      await Command.changeStatus(pendingCommand._id.toString(), true);
+      await Command.changeStatus(pendingCommand._id, true);
       return;
     }
 
@@ -288,7 +297,7 @@ class CommandService {
    * Update command status from device response
    */
   async updateCommandStatus(
-    messageId: string,
+    messageId: number,
     isError: boolean = false
   ): Promise<ICommandDocument | null> {
     const command = await Command.changeStatus(messageId, isError);

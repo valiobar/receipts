@@ -28,6 +28,10 @@ const deviceSchema = new Schema<IDeviceDocument>(
     lastSeen: {
       type: Date,
     },
+    devicePin: {
+      type: String,
+      default: '1234',
+    },
     metadata: {
       firmwareVersion: {
         type: String,

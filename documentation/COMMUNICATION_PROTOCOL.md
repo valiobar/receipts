@@ -281,7 +281,7 @@ wss://server:port/ws/123  (SSL)
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Seq": "1234",
   "Action": "print",
   "Text": "Ползване на фитнес и спа",
@@ -293,7 +293,7 @@ wss://server:port/ws/123  (SSL)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string (ObjectId) | Yes | Unique command identifier from database |
+| `MessageId` | number | Yes | Unique command identifier (auto-incremented numeric ID, not ObjectId) |
 | `Seq` | string or number | Yes | Receipt sequence number (clubReceiptN). Stored as string in DB, but JSON parsers accept both. |
 | `Action` | string | Yes | Must be `"print"` |
 | `Text` | string | Yes | Receipt text to print (Bulgarian) |
@@ -302,7 +302,7 @@ wss://server:port/ws/123  (SSL)
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "Seq": "1523",
   "Action": "print",
   "Text": "Ползване на фитнес и спа",
@@ -319,7 +319,7 @@ wss://server:port/ws/123  (SSL)
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439012",
+  "MessageId": 12346,
   "Action": "dailyReport"
 }
 ```
@@ -328,13 +328,13 @@ wss://server:port/ws/123  (SSL)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string (ObjectId) | Yes | Unique command identifier |
+| `MessageId` | number | Yes | Unique command identifier (auto-incremented numeric ID, not ObjectId) |
 | `Action` | string | Yes | Must be `"dailyReport"` |
 
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e2",
+  "MessageId": 12346,
   "Action": "dailyReport"
 }
 ```
@@ -346,7 +346,7 @@ wss://server:port/ws/123  (SSL)
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439013",
+  "MessageId": 12347,
   "Action": "report",
   "StartDate": "010219",
   "EndDate": "280219"
@@ -357,7 +357,7 @@ wss://server:port/ws/123  (SSL)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string (ObjectId) | Yes | Unique command identifier |
+| `MessageId` | number | Yes | Unique command identifier (auto-incremented numeric ID, not ObjectId) |
 | `Action` | string | Yes | Must be `"report"` |
 | `StartDate` | string | Yes | Start date in format `DDMMYY` |
 | `EndDate` | string | Yes | End date in format `DDMMYY` |
@@ -370,7 +370,7 @@ wss://server:port/ws/123  (SSL)
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e3",
+  "MessageId": 12347,
   "Action": "report",
   "StartDate": "010120",
   "EndDate": "310120"
@@ -385,7 +385,7 @@ wss://server:port/ws/123  (SSL)
 ```json
 {
   "Action": "customcmd",
-  "MessageId": "507f1f77bcf86cd799439014",
+  "MessageId": 12348,
   "CommandId": "2A",
   "Data": "C0C1C2C3"
 }
@@ -396,7 +396,7 @@ wss://server:port/ws/123  (SSL)
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `Action` | string | Yes | Must be `"customcmd"` (lowercase) |
-| `MessageId` | string (ObjectId) | Yes | Unique command identifier |
+| `MessageId` | number | Yes | Unique command identifier (auto-incremented numeric ID, not ObjectId) |
 | `CommandId` | string | Yes | Custom command identifier (hex) |
 | `Data` | string | Optional | Command data (hex string) |
 
@@ -411,7 +411,7 @@ wss://server:port/ws/123  (SSL)
 ```json
 {
   "Action": "customcmd",
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e4",
+  "MessageId": 12348,
   "CommandId": "45",
   "Data": "33"
 }
@@ -460,7 +460,7 @@ wss://server:port/ws/123  (SSL)
 3. **Message Formatting:**
    - All messages must be valid JSON
    - `Seq` and `Price` fields are sent as strings (matching receipt implementation)
-   - MessageId must be valid MongoDB ObjectId string
+   - MessageId must be a numeric value (auto-incremented command ID, not ObjectId string)
 
 4. **Error Handling:**
    - If send fails, command status remains "pending"
@@ -512,7 +512,7 @@ sequenceDiagram
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Status": "success"
 }
 ```
@@ -521,7 +521,7 @@ sequenceDiagram
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string | Yes | Command ID from server command |
+| `MessageId` | number | Yes | Command ID from server command (numeric ID, not ObjectId string) |
 | `Status` | string | Yes | Must be `"success"` |
 
 **Server Processing:**
@@ -532,7 +532,7 @@ sequenceDiagram
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "Status": "success"
 }
 ```
@@ -544,7 +544,7 @@ sequenceDiagram
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Status": "error",
   "MsgData": "Error description",
   "MsgStatus": "Error code"
@@ -555,7 +555,7 @@ sequenceDiagram
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string | Yes | Command ID from server command |
+| `MessageId` | number | Yes | Command ID from server command (numeric ID, not ObjectId string) |
 | `Status` | string | Yes | Must be `"error"` |
 | `MsgData` | string | Optional | Human-readable error description |
 | `MsgStatus` | string | Optional | Error code or status |
@@ -569,7 +569,7 @@ sequenceDiagram
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "Status": "error",
   "MsgData": "Paper jam detected",
   "MsgStatus": "E001"
@@ -802,7 +802,7 @@ wss://server:port/client  (SSL)
 **Message Format:**
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "UnicSaleNum": "1234",
   "action": "print",
   "price": "2.76",
@@ -815,7 +815,7 @@ wss://server:port/client  (SSL)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `MessageId` | string | Yes | Command ID (MongoDB ObjectId) |
+| `MessageId` | number | Yes | Command ID (auto-incremented numeric ID, not ObjectId) |
 | `UnicSaleNum` | string | Yes | Receipt sequence number (clubReceiptN) |
 | `action` | string | Yes | Always `"print"` (lowercase) |
 | `price` | string | Yes | Receipt amount (as string) |
@@ -827,7 +827,7 @@ wss://server:port/client  (SSL)
 **Example:**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "UnicSaleNum": "1523",
   "action": "print",
   "price": "2.76",
@@ -1013,9 +1013,8 @@ Clients can send messages to server (future feature):
   "type": "object",
   "properties": {
     "MessageId": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{24}$",
-      "description": "MongoDB ObjectId"
+      "type": "number",
+      "description": "Auto-incremented numeric command ID (not ObjectId)"
     },
     "Action": {
       "type": "string",
@@ -1063,8 +1062,8 @@ Clients can send messages to server (future feature):
   "type": "object",
   "properties": {
     "MessageId": {
-      "type": "string",
-      "pattern": "^[0-9a-fA-F]{24}$"
+      "type": "number",
+      "description": "Auto-incremented numeric command ID (not ObjectId)"
     },
     "Status": {
       "type": "string",
@@ -1280,7 +1279,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 2: Server Creates Command**
 ```json
 {
-  "_id": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "_id": 12345,
   "commandType": "receipt",
   "deviceId": "123",
   "amount": "2.76",
@@ -1293,7 +1292,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 3: Server Sends to Device**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "Seq": "1523",
   "Action": "print",
   "Text": "Ползване на фитнес и спа",
@@ -1304,7 +1303,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 4: Device Responds**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "Status": "success"
 }
 ```
@@ -1312,7 +1311,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 5: Server Broadcasts to Clients**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e1",
+  "MessageId": 12345,
   "UnicSaleNum": "1523",
   "action": "print",
   "price": "2.76",
@@ -1334,7 +1333,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 2: Server Creates Command**
 ```json
 {
-  "_id": "65a1b2c3d4e5f6a7b8c9d0e2",
+  "_id": 12346,
   "commandType": "dailyReport",
   "deviceId": "123",
   "status": "pending"
@@ -1344,7 +1343,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 3: Server Sends to Device**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e2",
+  "MessageId": 12346,
   "Action": "dailyReport"
 }
 ```
@@ -1352,7 +1351,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 4: Device Responds**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e2",
+  "MessageId": 12346,
   "Status": "success"
 }
 ```
@@ -1362,7 +1361,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 1: Server Sends Command**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e3",
+  "MessageId": 12347,
   "Seq": "1524",
   "Action": "print",
   "Text": "Ползване на фитнес и спа",
@@ -1373,7 +1372,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 2: Device Reports Error**
 ```json
 {
-  "MessageId": "65a1b2c3d4e5f6a7b8c9d0e3",
+  "MessageId": 12347,
   "Status": "error",
   "MsgData": "Paper jam detected",
   "MsgStatus": "E001"
@@ -1383,7 +1382,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 **Step 3: Server Updates Command**
 ```json
 {
-  "_id": "65a1b2c3d4e5f6a7b8c9d0e3",
+  "_id": 12347,
   "status": "error",
   "tsProcessed": "2024-01-15T10:30:00Z"
 }
@@ -1391,7 +1390,7 @@ GET /webhook?isSuccess=true&message=Club:Bulgaria;Zone:Fitness;MembershipFee:123
 
 **Step 4: Server Logs Error**
 ```
-ERROR: Command 65a1b2c3d4e5f6a7b8c9d0e3 failed
+ERROR: Command 12347 failed
 Device: 123
 Error: Paper jam detected (E001)
 ```
@@ -1647,7 +1646,7 @@ stateDiagram-v2
 
 | Field | Type | Format | Example |
 |-------|------|--------|---------|
-| `MessageId` | string | ObjectId (24 hex) | `"65a1b2c3d4e5f6a7b8c9d0e1"` |
+| `MessageId` | number | Auto-incremented numeric ID | `12345` |
 | `Action` | string | Enum | `"print"` |
 | `Status` | string | Enum | `"success"` |
 | `Seq` | string | Integer as string | `"1523"` |

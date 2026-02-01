@@ -622,7 +622,7 @@ class CommandService {
     switch (pendingCommand.commandType) {
       case 'receipt':
         commandMessage = {
-          MessageId: pendingCommand._id.toString(),
+          MessageId: pendingCommand._id,  // Numeric ID (not string)
           Seq: pendingCommand.clubReceiptN,
           Action: 'print',
           Text: 'Ползване на фитнес и спа',
@@ -632,14 +632,14 @@ class CommandService {
         
       case 'dailyReport':
         commandMessage = {
-          MessageId: pendingCommand._id.toString(),
+          MessageId: pendingCommand._id,  // Numeric ID (not string)
           Action: 'dailyReport'
         };
         break;
         
       case 'monthlyReport':
         commandMessage = {
-          MessageId: pendingCommand._id.toString(),
+          MessageId: pendingCommand._id,  // Numeric ID (not string)
           Action: 'report',
           StartDate: formatDate(pendingCommand.startDate),
           EndDate: formatDate(pendingCommand.endDate)
@@ -649,7 +649,7 @@ class CommandService {
       case 'customCmd':
         commandMessage = {
           Action: 'customcmd',
-          MessageId: pendingCommand._id.toString(),
+          MessageId: pendingCommand._id,  // Numeric ID (not string)
           CommandId: pendingCommand.customCmdId,
           Data: pendingCommand.dataCmd
         };
@@ -667,7 +667,7 @@ class CommandService {
   
   // Update command status from device response
   async updateCommandStatus(
-    messageId: string, 
+    messageId: number,  // Numeric ID (not string)
     status: 'success' | 'error'
   ): Promise<void> {
     const command = await CommandModel.findById(messageId);
@@ -714,7 +714,7 @@ class EventService extends EventEmitter {
         
         // Broadcast to frontend clients (matches receipt format - no type wrapper)
         this.connectionManager.broadcastToClients({
-          MessageId: command._id.toString(),
+          MessageId: command._id,  // Numeric ID (not string)
           UnicSaleNum: command.clubReceiptN,
           action: 'print',
           price: command.amount,
@@ -915,7 +915,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **Print Receipt Command**:
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Seq": "1234",
   "Action": "print",
   "Text": "Ползване на фитнес и спа",
@@ -926,7 +926,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **Daily Report Command**:
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439012",
+  "MessageId": 12346,
   "Action": "dailyReport"
 }
 ```
@@ -934,7 +934,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **Period Report Command**:
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439013",
+  "MessageId": 12347,
   "Action": "report",
   "StartDate": "010219",
   "EndDate": "280219"
@@ -945,7 +945,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 ```json
 {
   "Action": "customcmd",
-  "MessageId": "507f1f77bcf86cd799439014",
+  "MessageId": 12348,
   "CommandId": "2A",
   "Data": "C0C1C2C3"
 }
@@ -968,7 +968,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **Status Response (Success)**:
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Status": "success"
 }
 ```
@@ -976,7 +976,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **Status Response (Error)**:
 ```json
 {
-  "MessageId": "507f1f77bcf86cd799439011",
+  "MessageId": 12345,
   "Status": "error",
   "MsgData": "Error description",
   "MsgStatus": "Error code"
@@ -997,7 +997,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 ```typescript
 // Server to Device
 interface ServerCommand {
-  MessageId: string;
+  MessageId: number;       // Numeric command ID (auto-incremented, not ObjectId string)
   Action: 'print' | 'dailyReport' | 'report' | 'customcmd';
   Seq?: string;           // Receipt sequence number (for print) - stored as string in MongoDB
   Text?: string;          // Receipt text (for print)
@@ -1014,7 +1014,7 @@ interface PingMessage {
 
 // Device to Server
 interface DeviceMessage {
-  MessageId?: string;
+  MessageId?: number;     // Numeric command ID (not ObjectId string)
   Action?: 'ping';
   Status?: 'success' | 'error' | 'noPaper';
   MsgData?: string;
@@ -1217,7 +1217,7 @@ interface Receipt {
 
 ```typescript
 interface Command {
-  _id: ObjectId;
+  _id: number;                 // Auto-incremented numeric ID (not ObjectId)
   commandType: 'receipt' | 'dailyReport' | 'monthlyReport' | 'customCmd';
   deviceId: string;
   userNumber?: string;         // For receipt commands
@@ -1235,6 +1235,41 @@ interface Command {
   tsProcessed?: Date;          // When command was completed
   ts: Date;                    // Creation timestamp
 }
+```
+
+**Note:** Command `_id` is an auto-incremented number, not a MongoDB ObjectId. The Counter model (see below) manages the sequence generation using MongoDB's atomic operations.
+
+### Counter Model
+
+**Purpose:** Manages auto-increment sequences for numeric IDs
+
+**Location:** `server/src/models/Counter.ts`
+
+```typescript
+interface Counter {
+  _id: string;                 // Sequence name (e.g., "commandId")
+  seq: number;                 // Current sequence value
+}
+
+interface ICounterDocument extends Document {
+  _id: string;
+  seq: number;
+}
+
+interface ICounterModel extends Model<ICounterDocument> {
+  getNextSequence(sequenceName: string): Promise<number>;
+}
+```
+
+**Usage:**
+- Used by Command model to generate auto-incremented numeric `_id` values
+- Provides atomic sequence generation using MongoDB's `findOneAndUpdate` with `upsert`
+- Sequence name: `"commandId"` for Command model
+
+**Example:**
+```typescript
+const nextId = await Counter.getNextSequence('commandId');
+// Returns: 1, 2, 3, ... (increments atomically)
 ```
 
 ### Device Model
@@ -1807,7 +1842,7 @@ eventService.on('receipt', async (data) => {
     
     // Broadcast to clients (matches receipt format - no type wrapper)
     connectionManager.broadcastToClients({
-      MessageId: command._id.toString(),
+      MessageId: command._id,  // Numeric ID (not string)
       UnicSaleNum: command.clubReceiptN,
       action: 'print',
       price: command.amount,
@@ -1828,7 +1863,7 @@ async function processPendingCommands(deviceId: string) {
   
   // Format command
   const commandMessage: ServerCommand = {
-    MessageId: pendingCommand._id.toString(),
+    MessageId: pendingCommand._id,  // Numeric ID (not string)
     Seq: pendingCommand.clubReceiptN,
     Action: 'print',
     Text: 'Ползване на фитнес и спа',

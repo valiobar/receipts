@@ -34,7 +34,7 @@ export interface IReceipt {
 
 // Command interface
 export interface ICommand {
-  _id?: string;
+  _id?: number;
   commandType: CommandType;
   deviceId: string;
   userNumber?: string;
@@ -61,6 +61,7 @@ export interface IDevice {
   location: string;
   status: boolean;
   lastSeen?: Date;
+  devicePin?: string;
   metadata?: {
     firmwareVersion?: string;
     model?: string;

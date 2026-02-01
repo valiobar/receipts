@@ -10,6 +10,9 @@ export interface EnvConfig {
   jwtSecret?: string;
   jwtExpiresIn?: string;
   webhookIps: string[];
+  defaultUsername?: string;
+  defaultEmail?: string;
+  defaultPassword?: string;
 }
 
 const validateEnv = (): EnvConfig => {
@@ -37,6 +40,9 @@ const validateEnv = (): EnvConfig => {
   const webhookIps = process.env.WEBHOOK_IPS
     ? process.env.WEBHOOK_IPS.split(',').map((ip) => ip.trim())
     : [];
+  const defaultUsername = process.env.DEFAULT_USER_USERNAME;
+  const defaultEmail = process.env.DEFAULT_USER_EMAIL;
+  const defaultPassword = process.env.DEFAULT_USER_PASSWORD;
 
   return {
     nodeEnv,
@@ -45,6 +51,9 @@ const validateEnv = (): EnvConfig => {
     jwtSecret,
     jwtExpiresIn,
     webhookIps,
+    defaultUsername,
+    defaultEmail,
+    defaultPassword,
   };
 };
 

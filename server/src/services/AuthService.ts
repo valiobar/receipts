@@ -52,11 +52,16 @@ class AuthService {
    * Authenticate user and generate JWT token
    */
   async login(username: string, password: string): Promise<LoginResult> {
-    // Find user by username
-    const user = await User.findOne({ username }).exec();
+    // Find user by username (case-insensitive search)
+    const user = await User.findOne({ 
+      username: { $regex: new RegExp(`^${username}$`, 'i') }
+    }).exec();
 
     if (!user) {
-      logger.warn('Login attempt with invalid username', { username });
+      logger.warn('Login attempt with invalid username', { 
+        username,
+        availableUsers: await User.find({}).select('username').lean().exec().then(users => users.map(u => u.username))
+      });
       throw new Error('Invalid username or password');
     }
 
@@ -64,7 +69,10 @@ class AuthService {
     const isPasswordValid = await user.comparePassword(password);
 
     if (!isPasswordValid) {
-      logger.warn('Login attempt with invalid password', { username });
+      logger.warn('Login attempt with invalid password', { 
+        username: user.username,
+        userId: user._id.toString()
+      });
       throw new Error('Invalid username or password');
     }
 

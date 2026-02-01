@@ -8,7 +8,7 @@ import logger from '../config/winston';
 
 // Device message types (from protocol documentation)
 interface DeviceMessage {
-  MessageId?: string;
+  MessageId?: number;
   Action?: 'ping' | 'spad-naprejenie';
   Status?: 'success' | 'error' | 'noPaper' | 'spad-naprejenie';
   MsgData?: string;
@@ -178,9 +178,6 @@ async function handleDeviceMessage(
             messageId: message.MessageId,
           });
         }
-        
-        // Process next pending command
-        await commandService.processPendingCommands(deviceId);
         
         // Update device status
         connectionManager.updateDeviceStatus(deviceId, {
