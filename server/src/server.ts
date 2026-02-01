@@ -7,6 +7,7 @@ import { createApp } from './config/express';
 import { errorHandler } from './middleware/error-handler';
 import { initializeServices } from './services/initialize';
 import { setupDeviceHandler, setupClientHandler } from './handlers';
+import { seedDefaultUser } from './utils/seed';
 
 const startServer = async (): Promise<void> => {
   try {
@@ -15,6 +16,9 @@ const startServer = async (): Promise<void> => {
 
     // 2. Connect to database
     await connectDatabase();
+
+    // 2.3. Seed default user if database is empty
+    await seedDefaultUser();
 
     // 2.5. Initialize services (after database, before app creation)
     await initializeServices();

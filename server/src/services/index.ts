@@ -30,3 +30,5 @@ export type {
   TokenValidationResult,
 } from './AuthService';
 
+export { brpWebhookService, BRPWebhookService } from './BRPWebhookService';
+

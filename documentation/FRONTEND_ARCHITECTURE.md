@@ -113,7 +113,7 @@ frontend/
 │   │   ├── useWebSocket.ts
 │   │   ├── useReceipts.ts
 │   │   ├── useDevices.ts
-│   │   └── useApi.ts
+│   │   └── index.ts
 │   ├── store/                # State management (Context API or Redux)
 │   │   ├── auth.context.tsx  # Auth state context
 │   │   ├── devices.context.tsx  # Devices state context
@@ -267,29 +267,38 @@ interface ReceiptsState {
 ```
 
 **Actions:**
-- `fetchReceipts(filters)`: Load receipts with filters
+- `fetchReceipts(filters?)`: Load receipts with filters (optional, uses current filters if not provided)
 - `setFilters(filters)`: Update filter criteria
-- `addReceipt(receipt)`: Add new receipt (from WebSocket)
-- `exportReceipts(filters)`: Export to Excel
+- `addReceipt(receiptEvent, deviceId)`: Add new receipt from WebSocket event (converts ReceiptEvent to Receipt format internally)
+- `exportReceipts(params)`: Export to Excel/CSV with date range and optional device filter
 
 **Usage:**
 ```typescript
-const { receipts, filters, fetchReceipts, setFilters } = useReceipts();
+const { receipts, filters, pagination, isLoading, error, fetchReceipts, setFilters, addReceipt, exportReceipts } = useReceipts();
 ```
 
 ### State Updates from WebSocket
 
-WebSocket messages update state via context actions:
+WebSocket messages update state via context actions through custom DOM events:
 
 ```typescript
 // In useWebSocket hook
-socket.on('receipt', (data: ReceiptEvent) => {
-  receiptsContext.addReceipt(data);
-});
+const handleReceiptEvent = (event: CustomEvent<ReceiptEvent>): void => {
+  const receiptEvent = event.detail;
+  // Extract deviceId from location (format: "location/deviceId")
+  const deviceId = receiptEvent.location.split('/').pop() || '';
+  addReceipt(receiptEvent, deviceId); // Context method converts ReceiptEvent to Receipt
+};
 
-socket.on('connect', (data: DeviceStatusEvent) => {
-  devicesContext.updateDeviceStatus(data.location.device, data.location.status);
-});
+const handleDeviceStatusEvent = (event: CustomEvent<DeviceStatusEvent>): void => {
+  const statusEvent = event.detail;
+  const deviceId = statusEvent.location.device;
+  const isOnline = statusEvent.location.status;
+  updateDeviceStatus(deviceId, isOnline);
+};
+
+window.addEventListener(WEBSOCKET_EVENTS.RECEIPT, handleReceiptEvent);
+window.addEventListener(WEBSOCKET_EVENTS.DEVICE_STATUS, handleDeviceStatusEvent);
 ```
 
 ---
@@ -463,119 +472,101 @@ export const authService = new AuthService();
 
 **Purpose**: WebSocket connection management and message handling
 
-**Implementation:**
+**Key Features:**
+- Automatic reconnection with exponential backoff
+- Custom event dispatching for components
+- Token-based authentication
+- Message type routing
+
+**Implementation Highlights:**
 ```typescript
 import { io, Socket } from 'socket.io-client';
 import { getToken } from '@/utils/token';
+import { WS_URL } from '@/utils/constants';
 import type {
-  ClientMessage,
   ReceiptEvent,
   DeviceStatusEvent,
   NoPaperEvent,
   SpadNaprejenieEvent,
-} from '@/types/websocket.types';
+  InfoEvent,
+  ClientMessage,
+} from '@/types';
+
+/**
+ * Custom event names for dispatching to components
+ */
+export const WEBSOCKET_EVENTS = {
+  RECEIPT: 'receipt-event',
+  DEVICE_STATUS: 'device-status-event',
+  NO_PAPER: 'no-paper-event',
+  SPAD_NAPREJENIE: 'spad-naprejenie-event',
+} as const;
 
 class WebSocketService {
   private socket: Socket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
+  private reconnectDelay = 1000;
 
-  connect(): void {
+  connect(token?: string): void {
+    // Disconnect existing connection if any
     if (this.socket?.connected) {
-      return;
+      this.disconnect();
     }
 
-    const token = getToken();
-    const wsUrl = import.meta.env.VITE_WS_URL || '';
+    const authToken = token || getToken();
+    const wsUrl = WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : '');
+    const url = wsUrl ? `${wsUrl}/client` : '/client';
 
-    this.socket = io(wsUrl, {
-      path: '/client',
+    this.socket = io(url, {
       transports: ['websocket'],
-      auth: token ? { token } : undefined,
+      auth: authToken ? { token: authToken } : undefined,
       reconnection: true,
-      reconnectionDelay: 1000,
-      reconnectionDelayMax: 5000,
       reconnectionAttempts: this.maxReconnectAttempts,
+      reconnectionDelay: this.reconnectDelay,
+      reconnectionDelayMax: 10000,
     });
 
     this.setupEventHandlers();
   }
 
-  private setupEventHandlers(): void {
-    if (!this.socket) return;
+  private handleMessage(data: string | ClientMessage): void {
+    let message: ClientMessage;
 
-    this.socket.on('connect', () => {
-      console.log('WebSocket connected');
-      this.reconnectAttempts = 0;
-    });
+    // Parse if string, otherwise use as-is
+    if (typeof data === 'string') {
+      message = JSON.parse(data) as ClientMessage;
+    } else {
+      message = data;
+    }
 
-    this.socket.on('disconnect', (reason) => {
-      console.log('WebSocket disconnected:', reason);
-    });
-
-    this.socket.on('connect_error', (error) => {
-      console.error('WebSocket connection error:', error);
-      this.reconnectAttempts++;
-    });
-
-    // Receipt event (no type wrapper)
-    this.socket.on('message', (data: ClientMessage) => {
-      // Handle different message types
-      if ('action' in data && data.action === 'print') {
-        this.handleReceiptEvent(data as ReceiptEvent);
-      } else if (data.type === 'connect') {
-        this.handleDeviceStatusEvent(data as DeviceStatusEvent);
-      } else if (data.type === 'noPaper') {
-        this.handleNoPaperEvent(data as NoPaperEvent);
-      } else if (data.type === 'spad-naprejenie') {
-        this.handleSpadNaprejenieEvent(data as SpadNaprejenieEvent);
-      } else if (data.type === 'info') {
-        console.log('Info:', data.message);
-      }
-    });
-  }
-
-  private handleReceiptEvent(data: ReceiptEvent): void {
-    // Emit custom event for components to listen
-    window.dispatchEvent(
-      new CustomEvent('receipt-event', { detail: data })
-    );
-  }
-
-  private handleDeviceStatusEvent(data: DeviceStatusEvent): void {
-    window.dispatchEvent(
-      new CustomEvent('device-status-event', { detail: data })
-    );
-  }
-
-  private handleNoPaperEvent(data: NoPaperEvent): void {
-    window.dispatchEvent(
-      new CustomEvent('no-paper-event', { detail: data })
-    );
-  }
-
-  private handleSpadNaprejenieEvent(data: SpadNaprejenieEvent): void {
-    window.dispatchEvent(
-      new CustomEvent('spad-naprejenie-event', { detail: data })
-    );
-  }
-
-  disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
+    // Route message based on type
+    if ('action' in message && message.action === 'print') {
+      this.handleReceiptEvent(message as ReceiptEvent);
+    } else if ('type' in message && message.type === 'connect') {
+      this.handleDeviceStatusEvent(message as DeviceStatusEvent);
+    } else if ('type' in message && message.type === 'noPaper') {
+      this.handleNoPaperEvent(message as NoPaperEvent);
+    } else if ('type' in message && message.type === 'spad-naprejenie') {
+      this.handleSpadNaprejenieEvent(message as SpadNaprejenieEvent);
+    } else if ('type' in message && message.type === 'info') {
+      this.handleInfoEvent(message as InfoEvent);
     }
   }
 
-  isConnected(): boolean {
-    return this.socket?.connected ?? false;
+  private handleReceiptEvent(event: ReceiptEvent): void {
+    window.dispatchEvent(
+      new CustomEvent(WEBSOCKET_EVENTS.RECEIPT, { detail: event })
+    );
   }
+
+  // ... other event handlers
 }
 
 export const websocketService = new WebSocketService();
 ```
 
-**Note**: The WebSocket protocol uses raw WebSocket (not Socket.IO) on the backend, but we use `socket.io-client` for compatibility. The backend's `/client` endpoint accepts Socket.IO connections.
+**Note**: The WebSocket protocol uses raw WebSocket (not Socket.IO) on the backend, but we use `socket.io-client` for compatibility. The backend's `/client` endpoint accepts Socket.IO connections. The service dispatches custom DOM events that components can listen to via `window.addEventListener`.
 
 ---
 
@@ -611,215 +602,102 @@ const { user, isAuthenticated, login, logout } = useAuth();
 **Implementation:**
 ```typescript
 import { useEffect, useRef } from 'react';
-import { websocketService } from '@/services/websocket.service';
+import { websocketService, WEBSOCKET_EVENTS } from '@/services/websocket.service';
 import { useAuth } from './useAuth';
 import { useDevices } from './useDevices';
 import { useReceipts } from './useReceipts';
+import type { ReceiptEvent, DeviceStatusEvent } from '@/types';
 
 export const useWebSocket = (): void => {
-  const { isAuthenticated } = useAuth();
-  const { updateDeviceStatus } = useDevices();
+  const { isAuthenticated, token } = useAuth();
   const { addReceipt } = useReceipts();
-  const handlersSetup = useRef(false);
+  const { updateDeviceStatus } = useDevices();
+  const listenersSetupRef = useRef(false);
 
   useEffect(() => {
-    if (!isAuthenticated) {
-      websocketService.disconnect();
-      return;
-    }
-
-    if (!handlersSetup.current) {
-      // Setup event listeners
-      const handleReceipt = (event: CustomEvent<ReceiptEvent>) => {
-        addReceipt(event.detail);
-      };
-
-      const handleDeviceStatus = (event: CustomEvent<DeviceStatusEvent>) => {
-        const { location } = event.detail;
-        updateDeviceStatus(location.device, location.status);
-      };
-
-      window.addEventListener('receipt-event', handleReceipt as EventListener);
-      window.addEventListener('device-status-event', handleDeviceStatus as EventListener);
-
-      handlersSetup.current = true;
-
-      return () => {
-        window.removeEventListener('receipt-event', handleReceipt as EventListener);
-        window.removeEventListener('device-status-event', handleDeviceStatus as EventListener);
-      };
-    }
-  }, [isAuthenticated, addReceipt, updateDeviceStatus]);
-
-  useEffect(() => {
-    if (isAuthenticated) {
-      websocketService.connect();
-    } else {
-      websocketService.disconnect();
-    }
-
-    return () => {
-      websocketService.disconnect();
+    // Handle receipt events
+    const handleReceiptEvent = (event: CustomEvent<ReceiptEvent>): void => {
+      const receiptEvent = event.detail;
+      // Extract deviceId from location (format: "location/deviceId")
+      const deviceId = receiptEvent.location.split('/').pop() || '';
+      addReceipt(receiptEvent, deviceId);
     };
-  }, [isAuthenticated]);
+
+    // Handle device status events
+    const handleDeviceStatusEvent = (event: CustomEvent<DeviceStatusEvent>): void => {
+      const statusEvent = event.detail;
+      const deviceId = statusEvent.location.device;
+      const isOnline = statusEvent.location.status;
+      updateDeviceStatus(deviceId, isOnline);
+    };
+
+    // Connect WebSocket when authenticated
+    if (isAuthenticated && token) {
+      websocketService.connect(token);
+
+      // Setup event listeners
+      window.addEventListener(WEBSOCKET_EVENTS.RECEIPT, handleReceiptEvent as EventListener);
+      window.addEventListener(WEBSOCKET_EVENTS.DEVICE_STATUS, handleDeviceStatusEvent as EventListener);
+      listenersSetupRef.current = true;
+    } else {
+      // Disconnect WebSocket when not authenticated
+      websocketService.disconnect();
+      listenersSetupRef.current = false;
+    }
+
+    // Cleanup on unmount or when auth state changes
+    return () => {
+      window.removeEventListener(WEBSOCKET_EVENTS.RECEIPT, handleReceiptEvent as EventListener);
+      window.removeEventListener(WEBSOCKET_EVENTS.DEVICE_STATUS, handleDeviceStatusEvent as EventListener);
+      
+      if (!isAuthenticated) {
+        websocketService.disconnect();
+        listenersSetupRef.current = false;
+      }
+    };
+  }, [isAuthenticated, token, addReceipt, updateDeviceStatus]);
 };
 ```
 
 ### 3. `useReceipts` Hook
 
-**Purpose**: Receipt data fetching and management
+**Purpose**: Access receipts context (wrapper around ReceiptsContext)
 
 **Implementation:**
 ```typescript
-import { useContext, useCallback } from 'react';
+import { useContext } from 'react';
 import { ReceiptsContext } from '@/store/receipts.context';
-import { apiService } from '@/services/api.service';
-import type { ReceiptFilters } from '@/types/receipt.types';
 
 export const useReceipts = () => {
   const context = useContext(ReceiptsContext);
   if (!context) {
     throw new Error('useReceipts must be used within ReceiptsProvider');
   }
-
-  const { receipts, filters, pagination, isLoading, error, dispatch } = context;
-
-  const fetchReceipts = useCallback(
-    async (newFilters?: Partial<ReceiptFilters>) => {
-      dispatch({ type: 'SET_LOADING', payload: true });
-      try {
-        const params = { ...filters, ...newFilters };
-        const response = await apiService.getReceipts(params);
-        if (response.success) {
-          dispatch({
-            type: 'SET_RECEIPTS',
-            payload: {
-              receipts: response.data.receipts,
-              pagination: response.data.pagination,
-            },
-          });
-        }
-      } catch (err) {
-        dispatch({ type: 'SET_ERROR', payload: (err as Error).message });
-      } finally {
-        dispatch({ type: 'SET_LOADING', payload: false });
-      }
-    },
-    [filters, dispatch]
-  );
-
-  const setFilters = useCallback(
-    (newFilters: Partial<ReceiptFilters>) => {
-      dispatch({ type: 'SET_FILTERS', payload: newFilters });
-    },
-    [dispatch]
-  );
-
-  const addReceipt = useCallback(
-    (receipt: Receipt) => {
-      dispatch({ type: 'ADD_RECEIPT', payload: receipt });
-    },
-    [dispatch]
-  );
-
-  const exportReceipts = useCallback(
-    async (exportFilters?: ReceiptFilters) => {
-      const params = exportFilters || filters;
-      const blob = await apiService.exportReceipts(params);
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = `receipts-${new Date().toISOString().split('T')[0]}.xlsx`;
-      a.click();
-      window.URL.revokeObjectURL(url);
-    },
-    [filters]
-  );
-
-  return {
-    receipts,
-    filters,
-    pagination,
-    isLoading,
-    error,
-    fetchReceipts,
-    setFilters,
-    addReceipt,
-    exportReceipts,
-  };
+  return context;
 };
 ```
 
+**Note**: The actual business logic (fetchReceipts, setFilters, addReceipt, exportReceipts) is implemented in the `ReceiptsProvider` component and exposed through the context value. The hook simply provides access to the context.
+
 ### 4. `useDevices` Hook
 
-**Purpose**: Device data fetching and management
+**Purpose**: Access devices context (wrapper around DevicesContext)
 
 **Implementation:**
 ```typescript
-import { useContext, useCallback } from 'react';
+import { useContext } from 'react';
 import { DevicesContext } from '@/store/devices.context';
-import { apiService } from '@/services/api.service';
-import type { DeviceCommand } from '@/types/device.types';
 
 export const useDevices = () => {
   const context = useContext(DevicesContext);
   if (!context) {
     throw new Error('useDevices must be used within DevicesProvider');
   }
-
-  const { devices, onlineDevices, selectedDevice, isLoading, error, dispatch } = context;
-
-  const fetchDevices = useCallback(async () => {
-    dispatch({ type: 'SET_LOADING', payload: true });
-    try {
-      const response = await apiService.getDevices();
-      if (response.success) {
-        dispatch({ type: 'SET_DEVICES', payload: response.data.devices });
-      }
-    } catch (err) {
-      dispatch({ type: 'SET_ERROR', payload: (err as Error).message });
-    } finally {
-      dispatch({ type: 'SET_LOADING', payload: false });
-    }
-  }, [dispatch]);
-
-  const updateDeviceStatus = useCallback(
-    (deviceId: string, isOnline: boolean) => {
-      dispatch({
-        type: 'UPDATE_DEVICE_STATUS',
-        payload: { deviceId, isOnline },
-      });
-    },
-    [dispatch]
-  );
-
-  const sendCommand = useCallback(
-    async (deviceId: string, command: DeviceCommand) => {
-      try {
-        const response = await apiService.sendDeviceCommand(deviceId, command);
-        if (response.success) {
-          return response.data;
-        }
-        throw new Error(response.error?.message || 'Command failed');
-      } catch (err) {
-        throw err;
-      }
-    },
-    []
-  );
-
-  return {
-    devices,
-    onlineDevices,
-    selectedDevice,
-    isLoading,
-    error,
-    fetchDevices,
-    updateDeviceStatus,
-    sendCommand,
-  };
+  return context;
 };
 ```
+
+**Note**: The actual business logic (fetchDevices, updateDeviceStatus, selectDevice, sendCommand) is implemented in the `DevicesProvider` component and exposed through the context value. The hook simply provides access to the context.
 
 ---
 
@@ -1074,6 +952,8 @@ interface DeviceCommandProps {
 // src/App.tsx
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/store/auth.context';
+import { DevicesProvider } from '@/store/devices.context';
+import { ReceiptsProvider } from '@/store/receipts.context';
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
 import { Layout } from '@/components/common/Layout';
 import { Login } from '@/pages/Login';
@@ -1085,22 +965,49 @@ export const App = (): JSX.Element => {
   return (
     <BrowserRouter>
       <AuthProvider>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            <Route index element={<Dashboard />} />
-            <Route path="receipts" element={<Receipts />} />
-            <Route path="devices" element={<Devices />} />
-          </Route>
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
+        <DevicesProvider>
+          <ReceiptsProvider>
+            <Routes>
+              {/* Public route: Login */}
+              <Route path="/login" element={<Login />} />
+
+              {/* Protected routes with Layout */}
+              <Route
+                path="/"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Dashboard />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/receipts"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Receipts />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/devices"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <Devices />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* 404 redirect to dashboard */}
+              <Route path="*" element={<Navigate to="/" replace />} />
+            </Routes>
+          </ReceiptsProvider>
+        </DevicesProvider>
       </AuthProvider>
     </BrowserRouter>
   );
@@ -1172,14 +1079,16 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element =
 ```typescript
 // Message format (no type wrapper)
 {
-  MessageId: "65a1b2c3d4e5f6a7b8c9d0e1",
+  MessageId: 1234567890,  // Number, not string
   UnicSaleNum: "1523",
   action: "print",
   price: "2.76",
   user: "123456",
-  location: "Bulgaria"
+  location: "Bulgaria/deviceId"  // Format: "location/deviceId"
 }
 ```
+
+**Note**: The `location` field contains both location name and device ID in the format `"location/deviceId"`. The device ID is extracted in the `useWebSocket` hook by splitting on `/` and taking the last segment.
 
 **Device Status Events:**
 ```typescript
@@ -1217,12 +1126,21 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element =
 }
 ```
 
+**Info Events:**
+```typescript
+{
+  type: "info",
+  message: "Connection established"
+}
+```
+
 ### Reconnection Strategy
 
-- **Automatic Reconnection**: Socket.io-client handles reconnection
+- **Automatic Reconnection**: Socket.io-client handles reconnection automatically
 - **Max Attempts**: 5 reconnection attempts
-- **Exponential Backoff**: Delay increases with each attempt
-- **User Notification**: Show connection status in UI
+- **Exponential Backoff**: Delay increases with each attempt (starts at 1s, max 10s)
+- **Reconnection Tracking**: Service tracks attempts and resets on successful connection
+- **User Notification**: Connection status can be displayed in UI (implementation-specific)
 
 ---
 
@@ -1230,15 +1148,17 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element =
 
 ### API Base URL
 
-**Development:**
+**Configuration:**
 ```typescript
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+// In utils/constants.ts
+export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'http://localhost:3000/api' : '/api');
+export const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : '');
 ```
 
-**Production:**
-```typescript
-const API_URL = import.meta.env.VITE_API_URL || '/api';
-```
+**Usage:**
+- Import constants from `@/utils/constants`
+- API service uses `API_URL` for base URL
+- WebSocket service uses `WS_URL` for connection URL
 
 ### Request Headers
 
@@ -1455,13 +1375,14 @@ export interface DeviceCommand {
 
 **WebSocket Types** (`src/types/websocket.types.ts`):
 ```typescript
+// Receipt event (no type wrapper, sent directly)
 export interface ReceiptEvent {
-  MessageId: string;
+  MessageId: number;  // Number, not string
   UnicSaleNum: string;
   action: 'print';
   price: string;
   user: string;
-  location: string;
+  location: string;  // Format: "location/deviceId"
 }
 
 export interface DeviceStatusEvent {
@@ -1469,7 +1390,7 @@ export interface DeviceStatusEvent {
   location: {
     name: string;
     device: string;
-    status: boolean;
+    status: boolean; // true = online, false = offline
   };
 }
 
@@ -1478,7 +1399,7 @@ export interface NoPaperEvent {
   location: {
     name: string;
     device: string;
-    status: boolean;
+    status: boolean; // Always true (device still online)
   };
 }
 
@@ -1487,11 +1408,18 @@ export interface SpadNaprejenieEvent {
   location: {
     name: string;
     device: string;
-    status: boolean;
+    status: boolean; // Always true (device still online)
   };
 }
 
-export type ClientMessage = ReceiptEvent | DeviceStatusEvent | NoPaperEvent | SpadNaprejenieEvent;
+// Info message (connection confirmation)
+export interface InfoEvent {
+  type: 'info';
+  message: string;
+}
+
+// Union type for all client messages
+export type ClientMessage = ReceiptEvent | DeviceStatusEvent | NoPaperEvent | SpadNaprejenieEvent | InfoEvent;
 ```
 
 ### Type Safety Rules

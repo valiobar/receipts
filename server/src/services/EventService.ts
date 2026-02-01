@@ -138,7 +138,7 @@ class EventService extends EventEmitter {
         // Broadcast receipt event to clients (matches protocol - no type wrapper)
         connectionManager.broadcastToClients({
           MessageId: command._id.toString(),
-          UnicSaleNum: command.clubReceiptN?.toString() || '0',
+          UnicSaleNum:'PIN1-' +command.clubReceiptN?.toString() || '0',
           action: 'print',
           price: command.amount || '0',
           user: command.userNumber || '',
