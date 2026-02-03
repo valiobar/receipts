@@ -9,12 +9,12 @@
         "dev:backend": "cd server && npm run dev",
         "dev:copy": "chokidar-cli \"frontend/dist/**/*\" -c \"npm run copy:frontend\"",
         "copy:frontend": "mkdir -p server/public && cp -r frontend/dist/* server/public/",
-        "build:frontend": "cd frontend && npm install && npm run build",
+        "build:frontend": "cd frontend && npm install --include=dev && npm run build",
         "build:backend": "cd server && npm install && npm run build",
         "build:all": "npm run build:frontend && npm run build:backend",
         "deploy:copy": "mkdir -p server/public && cp -r frontend/dist/* server/public/",
         "deploy": "npm run build:all && npm run deploy:copy",
-        "heroku-postbuild": "npm run build:all && npm run deploy:copy",
+        "heroku-postbuild": "NPM_CONFIG_PRODUCTION=false npm run build:all && npm run deploy:copy",
         "start": "cd server && npm start"
     },
     "devDependencies": {
