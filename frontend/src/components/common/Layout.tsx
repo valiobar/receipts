@@ -7,7 +7,7 @@ interface LayoutProps {
 
 export const Layout = ({ children }: LayoutProps): JSX.Element => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Main layout container */}
       <div className="flex">
         {/* Sidebar */}

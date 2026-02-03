@@ -53,10 +53,10 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
 
   if (!deviceId) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
         <div className="max-w-md mx-auto">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -69,8 +69,8 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
               d="M9 3v2m6-2v2M9 19v2m6-2v2M5 9H3m2 6H3m18-6h-2m2 6h-2M7 19h10a2 2 0 002-2V7a2 2 0 00-2-2H7a2 2 0 00-2 2v10a2 2 0 002 2zM9 9h6v6H9V9z"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No device selected</h3>
-          <p className="mt-2 text-sm text-gray-500">
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No device selected</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Select a device from the list to view its status.
           </p>
         </div>
@@ -88,10 +88,10 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
 
   if (error && !status) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-red-200 p-6">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-red-200 dark:border-red-800 p-6">
         <div className="flex items-start gap-3">
           <svg
-            className="h-5 w-5 text-red-500 mt-0.5"
+            className="h-5 w-5 text-red-500 dark:text-red-400 mt-0.5"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -105,8 +105,8 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
             />
           </svg>
           <div className="flex-1">
-            <h3 className="text-sm font-medium text-red-800">Error loading status</h3>
-            <p className="mt-1 text-sm text-red-600">{error}</p>
+            <h3 className="text-sm font-medium text-red-800 dark:text-red-300">Error loading status</h3>
+            <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
           </div>
         </div>
       </div>
@@ -117,9 +117,9 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
   const statusText = status?.status ?? 'unknown';
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
       <div className="flex items-center justify-between mb-6">
-        <h2 className="text-xl font-semibold text-gray-900">Device Status</h2>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Device Status</h2>
         <div className="flex items-center gap-2">
           <span
             className={`
@@ -128,7 +128,7 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
             `.trim()}
             aria-label={isOnline ? 'Device is online' : 'Device is offline'}
           />
-          <span className="text-sm font-medium text-gray-700">
+          <span className="text-sm font-medium text-gray-700 dark:text-gray-300">
             {isOnline ? 'Online' : 'Offline'}
           </span>
         </div>
@@ -137,27 +137,27 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
       <div className="space-y-4">
         {/* Device Info */}
         {device && (
-          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200">
+          <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Device Name</p>
-              <p className="text-sm font-medium text-gray-900">{device.name || 'N/A'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Device Name</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{device.name || 'N/A'}</p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Location</p>
-              <p className="text-sm font-medium text-gray-900">{device.location || 'N/A'}</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Location</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">{device.location || 'N/A'}</p>
             </div>
           </div>
         )}
 
         {/* Status Info */}
-        <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200">
+        <div className="grid grid-cols-2 gap-4 pb-4 border-b border-gray-200 dark:border-gray-700">
           <div>
-            <p className="text-sm text-gray-600 mb-1">Status</p>
-            <p className="text-sm font-medium text-gray-900 capitalize">{statusText}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">{statusText}</p>
           </div>
           <div>
-            <p className="text-sm text-gray-600 mb-1">Pending Commands</p>
-            <p className="text-sm font-medium text-gray-900">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Pending Commands</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
               {status?.pendingCommands ?? 0}
             </p>
           </div>
@@ -165,9 +165,9 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
 
         {/* Last Seen */}
         {status?.lastSeen && (
-          <div className="pb-4 border-b border-gray-200">
-            <p className="text-sm text-gray-600 mb-1">Last Seen</p>
-            <p className="text-sm font-medium text-gray-900">
+          <div className="pb-4 border-b border-gray-200 dark:border-gray-700">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Last Seen</p>
+            <p className="text-sm font-medium text-gray-900 dark:text-white">
               {formatDate(status.lastSeen, {
                 year: 'numeric',
                 month: 'short',
@@ -183,10 +183,10 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
         {/* Last Command */}
         {status?.lastCommand && (
           <div>
-            <p className="text-sm text-gray-600 mb-2">Last Command</p>
-            <div className="bg-gray-50 rounded-lg p-4 space-y-2">
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">Last Command</p>
+            <div className="bg-gray-50 dark:bg-gray-900/50 rounded-lg p-4 space-y-2">
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium text-gray-900">
+                <span className="text-sm font-medium text-gray-900 dark:text-white">
                   Type: <span className="font-normal capitalize">{status.lastCommand.type}</span>
                 </span>
                 <span
@@ -194,17 +194,17 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
                     px-2 py-1 rounded text-xs font-medium
                     ${
                       status.lastCommand.status === 'complete'
-                        ? 'bg-green-100 text-green-800'
+                        ? 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-300'
                         : status.lastCommand.status === 'error'
-                        ? 'bg-red-100 text-red-800'
-                        : 'bg-yellow-100 text-yellow-800'
+                        ? 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300'
+                        : 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-300'
                     }
                   `.trim()}
                 >
                   {status.lastCommand.status}
                 </span>
               </div>
-              <div className="text-xs text-gray-500">
+              <div className="text-xs text-gray-500 dark:text-gray-400">
                 ID: {status.lastCommand.id} |{' '}
                 {formatDate(status.lastCommand.timestamp, {
                   year: 'numeric',
@@ -221,7 +221,7 @@ export const DeviceStatus = ({ deviceId }: DeviceStatusProps): JSX.Element => {
         {/* No Last Command */}
         {!status?.lastCommand && (
           <div className="text-center py-4">
-            <p className="text-sm text-gray-500">No command history available</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400">No command history available</p>
           </div>
         )}
       </div>

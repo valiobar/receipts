@@ -15,12 +15,12 @@ export const Loading = ({ size = 'md', message }: LoadingProps): JSX.Element => 
   return (
     <div className="flex flex-col items-center justify-center gap-4 p-4">
       <div
-        className={`${SIZE_CLASSES[size]} border-gray-300 border-t-primary-500 rounded-full animate-spin`}
+        className={`${SIZE_CLASSES[size]} border-gray-300 dark:border-gray-600 border-t-primary-500 dark:border-t-primary-400 rounded-full animate-spin`}
         role="status"
         aria-label="Loading"
       />
       {message && (
-        <p className="text-sm text-gray-600 font-medium">{message}</p>
+        <p className="text-sm text-gray-600 dark:text-gray-400 font-medium">{message}</p>
       )}
     </div>
   );

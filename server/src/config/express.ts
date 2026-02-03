@@ -48,8 +48,22 @@ export const createApp = (): Express => {
   app.use('/webhook', webhookRoutes);
 
   // Static file serving (for Phase 8 - frontend build)
-  const publicPath = path.join(__dirname, '../public');
+  // Resolve public path: works in both dev (src/config) and production (dist/config)
+  // From src/config or dist/config, go up two levels to server root, then into public
+  const publicPath = path.resolve(__dirname, '../../public');
   app.use(express.static(publicPath));
+
+  // Catch-all handler: serve React SPA for all non-API routes
+  // This allows React Router to handle client-side routing
+  app.get('*', (req, res) => {
+    // Skip API, webhook, and WebSocket routes
+    if (req.path.startsWith('/api') || req.path.startsWith('/webhook') || req.path.startsWith('/ws') || req.path.startsWith('/client')) {
+      return res.status(404).json({ error: 'Not found' });
+    }
+    
+    // Serve index.html for all other routes (React Router will handle routing)
+    res.sendFile(path.join(publicPath, 'index.html'));
+  });
 
   logger.info('Express app configured', {
     nodeEnv: env.nodeEnv,

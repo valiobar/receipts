@@ -142,10 +142,10 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
 
   if (!deviceId) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 text-center">
         <div className="max-w-md mx-auto">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -158,8 +158,8 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
               d="M12 6v6m0 0v6m0-6h6m-6 0H6"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No device selected</h3>
-          <p className="mt-2 text-sm text-gray-500">
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No device selected</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             Select a device from the list to send commands.
           </p>
         </div>
@@ -168,13 +168,13 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
   }
 
   return (
-    <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-      <h2 className="text-xl font-semibold text-gray-900 mb-6">Send Command</h2>
+    <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+      <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-6">Send Command</h2>
 
       <form onSubmit={handleSubmit} className="space-y-6">
         {/* Command Type Selection */}
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
+          <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
             Command Type
           </label>
           <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
@@ -188,8 +188,8 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
                     px-4 py-2 text-sm font-medium rounded-lg border transition-colors duration-200
                     ${
                       commandType === type
-                        ? 'bg-primary-500 text-white border-primary-500'
-                        : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-50'
+                        ? 'bg-primary-500 dark:bg-primary-600 text-white border-primary-500 dark:border-primary-600'
+                        : 'bg-white dark:bg-gray-700 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-600'
                     }
                   `.trim()}
                 >
@@ -252,10 +252,10 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
 
         {/* Error Message */}
         {error && (
-          <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+          <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <svg
-                className="h-5 w-5 text-red-500 mt-0.5"
+                className="h-5 w-5 text-red-500 dark:text-red-400 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -269,8 +269,8 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-medium text-red-800">Error</p>
-                <p className="mt-1 text-sm text-red-600">{error}</p>
+                <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+                <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
               </div>
             </div>
           </div>
@@ -278,10 +278,10 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
 
         {/* Success Message */}
         {success && (
-          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+          <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
             <div className="flex items-start gap-3">
               <svg
-                className="h-5 w-5 text-green-500 mt-0.5"
+                className="h-5 w-5 text-green-500 dark:text-green-400 mt-0.5"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -295,8 +295,8 @@ export const DeviceCommand = ({ deviceId }: DeviceCommandProps): JSX.Element => 
                 />
               </svg>
               <div className="flex-1">
-                <p className="text-sm font-medium text-green-800">Success</p>
-                <p className="mt-1 text-sm text-green-600">{success}</p>
+                <p className="text-sm font-medium text-green-800 dark:text-green-300">Success</p>
+                <p className="mt-1 text-sm text-green-600 dark:text-green-400">{success}</p>
               </div>
             </div>
           </div>

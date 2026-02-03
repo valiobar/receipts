@@ -44,3 +44,4 @@ export const hasToken = (): boolean => {
   return getToken() !== null;
 };
 
+

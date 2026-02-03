@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider } from '@/store/auth.context';
 import { DevicesProvider } from '@/store/devices.context';
 import { ReceiptsProvider } from '@/store/receipts.context';
+import { ThemeProvider } from '@/store/theme.context';
 import { ProtectedRoute } from '@/components/common/ProtectedRoute';
 import { Layout } from '@/components/common/Layout';
 import { Login } from '@/pages/Login';
@@ -16,10 +17,11 @@ import { Devices } from '@/pages/Devices';
 export const App = (): JSX.Element => {
   return (
     <BrowserRouter>
-      <AuthProvider>
-        <DevicesProvider>
-          <ReceiptsProvider>
-            <Routes>
+      <ThemeProvider>
+        <AuthProvider>
+          <DevicesProvider>
+            <ReceiptsProvider>
+              <Routes>
               {/* Public route: Login */}
               <Route path="/login" element={<Login />} />
 
@@ -57,10 +59,11 @@ export const App = (): JSX.Element => {
 
               {/* 404 redirect to dashboard */}
               <Route path="*" element={<Navigate to="/" replace />} />
-            </Routes>
-          </ReceiptsProvider>
-        </DevicesProvider>
-      </AuthProvider>
+              </Routes>
+            </ReceiptsProvider>
+          </DevicesProvider>
+        </AuthProvider>
+      </ThemeProvider>
     </BrowserRouter>
   );
 };
