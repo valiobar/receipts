@@ -32,3 +32,5 @@ export type {
 
 export { brpWebhookService, BRPWebhookService } from './BRPWebhookService';
 
+export { businessUnitService, BusinessUnitService } from './BusinessUnitService';
+

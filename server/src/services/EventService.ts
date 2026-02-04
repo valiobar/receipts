@@ -5,12 +5,10 @@ import { connectionManager } from '../managers/ConnectionManager';
 
 // Event data interfaces
 export interface ReceiptEventData {
-  club: string;
-  zone?: string;
+  club: string; 
   membershipFee: number;
   user: string;
-  device: string;
-  ip: string;
+  device: string;  
   amount: number;
   location: string;
 }

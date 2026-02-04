@@ -1,5 +1,6 @@
 import { Request, Response } from 'express';
-import { eventService } from '../services/EventService';
+import { ReceiptEventData, eventService } from '../services/EventService';
+import { businessUnitService } from '../services/BusinessUnitService';
 import { isIPWhitelisted, getClientIP } from '../utils/ip-whitelist';
 import logger from '../config/winston';
 import {
@@ -76,9 +77,9 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     
     // Extract required fields for receipt processing
     // Handle different data structures based on event type
-    let person: { id?: number; ssn?: string; businessUnit?: { id?: number; name?: string } } | undefined;
-    let businessUnit: { id?: number; name?: string; timeZone?: string } | undefined;
-    let amount: number | undefined;
+    let person: { id?: number; } | undefined;
+    let businessUnit: { id?: number;  } | undefined;
+    
     
     // Try to extract from booking event structure
     if ('person' in eventData && eventData.person) {
@@ -87,20 +88,9 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     if ('businessUnit' in eventData && eventData.businessUnit) {
       businessUnit = eventData.businessUnit as typeof businessUnit;
     }
-    if ('amount' in eventData && typeof eventData.amount === 'number') {
-      amount = eventData.amount;
-    }
-    
-    // If person is nested, try to get it from person property
-    if (!person && 'person' in eventData) {
-      const personData = (eventData as Record<string, unknown>).person;
-      if (personData && typeof personData === 'object' && personData !== null) {
-        person = personData as unknown as typeof person;
-      }
-    }
-    
+
     // Validate required fields
-    if (!person || (!person.id && !person.ssn)) {
+    if (!person || (!person.id)) {
       logger.info('BRP webhook missing person data', {
         ip: clientIP,
         event: eventType,
@@ -109,58 +99,30 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
       res.status(200).json({ success: true });
       return;
     }
-    
-    // Extract user identifier (prefer SSN, fallback to person ID)
-    const userNumber = person.ssn || person.id?.toString() || '';
-    
-    // Validate user number
-    if (!userNumber || userNumber.length < 2) {
-      logger.info('BRP webhook invalid user number', {
-        ip: clientIP,
-        event: eventType,
-        userNumber,
-      });
-      res.status(200).json({ success: true });
-      return;
-    }
-    
-    // Extract membership fee (use amount from event or default to 0)
-    const membershipFee = amount ?? 0;
-    
-    if (membershipFee <= 0) {
-      logger.info('BRP webhook invalid amount', {
-        ip: clientIP,
-        event: eventType,
-        amount: membershipFee,
-      });
-      res.status(200).json({ success: true });
-      return;
-    }
-    
     // Extract location information
     // Try businessUnit from event data first, then from person
-    const locationBusinessUnit = businessUnit || person.businessUnit;
-    const location = locationBusinessUnit?.name || 'unknown';
-    const deviceId = locationBusinessUnit?.id?.toString() || location;
-    const club = location;
-    const zone = locationBusinessUnit?.name || undefined;
+    const locationBusinessUnit = businessUnit;
+    const location = locationBusinessUnit?.id || 'unknown';
     
-    // Emit receipt event
-    eventService.emitReceipt({
-      device: deviceId,
+    // Map location ID to business unit name for club property
+    const club = businessUnitService.getNameById(location);
+    const receiptEventData: ReceiptEventData = {
+      device: '123',
       amount: 0.01, // Fixed amount per documentation
-      membershipFee: membershipFee,
-      user: userNumber,
-      location: location,
-      ip: clientIP,
+      membershipFee: 3,
+      user: person.id?.toString() || 'unknown',
+      location: location.toString(),
       club: club,
-      zone: zone,
-    });
+    };
+   
+    logger.info('receiptEventData', receiptEventData);
+    // Emit receipt event
+    eventService.emitReceipt(receiptEventData);
     
     logger.info('BRP webhook processed successfully', {
-      ip: clientIP,
+      
       event: eventType,
-      user: userNumber,
+      user: person.id,
       location: location,
     });
     
@@ -264,9 +226,7 @@ export const handleReceiptWebhook = async (req: Request, res: Response): Promise
       membershipFee: fee,
       user: userNumber,
       location: club || zone || 'unknown',
-      ip: clientIP,
       club: club || 'unknown',
-      zone: zone || undefined,
     });
     
     res.json({ success: true });

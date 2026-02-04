@@ -2,6 +2,7 @@ import { eventService } from './EventService';
 import { commandService } from './CommandService';
 import { deviceService } from './DeviceService';
 import { brpWebhookService } from './BRPWebhookService';
+import { businessUnitService } from './BusinessUnitService';
 import { connectionManager } from '../managers/ConnectionManager';
 import logger from '../config/winston';
 
@@ -23,6 +24,9 @@ export const initializeServices = async (): Promise<void> => {
 
     // Register BRP webhooks with external API
     await brpWebhookService.registerWebhooks();
+
+    // Initialize business units cache
+    await businessUnitService.initialize();
 
     logger.info('Services initialized successfully');
   } catch (error: unknown) {
