@@ -66,7 +66,10 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
       res.status(200).json({ success: true });
       return;
     }
-    
+     logger.info('BRP webhook event triggers receipt', {
+       payload: payload,
+       data: payload.data,
+    });
     // Extract data from payload
     // The data structure depends on the event type and data projection
     const eventData = payload.data as BRPBookingEventData | Record<string, unknown>;
