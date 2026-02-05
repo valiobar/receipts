@@ -1,14 +1,18 @@
 import { Request, Response } from 'express';
 import { ReceiptEventData, eventService } from '../services/EventService';
 import { businessUnitService } from '../services/BusinessUnitService';
+import { brpUserService } from '../services/BRPUserService';
+import { deviceService } from '../services/DeviceService';
 import { isIPWhitelisted, getClientIP } from '../utils/ip-whitelist';
 import logger from '../config/winston';
 import {
   BRPWebhookPayload,
   BRPEventType,
   BRPBookingEventData,
+  BRPPassageTryData,
   RECEIPT_TRIGGER_EVENTS,
 } from '../types/brp-events';
+import type { BRPSubscription } from '../types/brp-api';
 
 /**
  * POST /webhook
@@ -73,20 +77,29 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     });
     // Extract data from payload
     // The data structure depends on the event type and data projection
-    const eventData = payload.data as BRPBookingEventData | Record<string, unknown>;
+    const eventData = payload.data;
     
     // Extract required fields for receipt processing
     // Handle different data structures based on event type
     let person: { id?: number; } | undefined;
     let businessUnit: { id?: number;  } | undefined;
     
-    
-    // Try to extract from booking event structure
-    if ('person' in eventData && eventData.person) {
-      person = eventData.person as typeof person;
-    }
-    if ('businessUnit' in eventData && eventData.businessUnit) {
-      businessUnit = eventData.businessUnit as typeof businessUnit;
+    // Handle PASSAGE_TRY event structure
+    if (eventType === BRPEventType.PASSAGE_TRY) {
+      const passageTryData = eventData as BRPPassageTryData;
+      if (passageTryData.passageTry) {
+        person = passageTryData.passageTry.person;
+        businessUnit = passageTryData.passageTry.businessUnit;
+      }
+    } else {
+      // Handle booking event structure and other event types
+      const bookingData = eventData as BRPBookingEventData | Record<string, unknown>;
+      if ('person' in bookingData && bookingData.person) {
+        person = bookingData.person as typeof person;
+      }
+      if ('businessUnit' in bookingData && bookingData.businessUnit) {
+        businessUnit = bookingData.businessUnit as typeof businessUnit;
+      }
     }
 
     // Validate required fields
@@ -99,6 +112,37 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
       res.status(200).json({ success: true });
       return;
     }
+
+    // Check for Pulse Club subscription before creating receipt event
+    let pulseClubSubscription: BRPSubscription | undefined;
+    if (person?.id && typeof person.id === 'number') {
+      try {
+        const subscription = await brpUserService.getPulseClubSubscription(person.id);
+        if (!subscription) {
+          logger.info('No Pulse Club subscription found, skipping receipt command creation', {
+            personId: person.id,
+            event: eventType,
+            location: businessUnit?.id || 'unknown',
+          });
+          // Return success to prevent BRP retries
+          res.status(200).json({ success: true });
+          return;
+        }
+        pulseClubSubscription = subscription;
+        logger.debug('Pulse Club subscription confirmed, proceeding with receipt creation', {
+          personId: person.id,
+          subscriptionId: subscription.id,
+        });
+      } catch (error) {
+        // Fail open: if subscription check fails, proceed with receipt event
+        logger.error('Error checking Pulse Club subscription, proceeding with receipt creation', {
+          personId: person.id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Continue with receipt event emission (pulseClubSubscription remains undefined)
+      }
+    }
+
     // Extract location information
     // Try businessUnit from event data first, then from person
     const locationBusinessUnit = businessUnit;
@@ -106,13 +150,57 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     
     // Map location ID to business unit name for club property
     const club = businessUnitService.getNameById(location);
+    
+    // Get device ID from database by location
+    let deviceId = 'unknown';
+    try {
+      const locationStr = location.toString();
+      const devices = await deviceService.getAllDevices({ location: locationStr });
+      if (devices.length > 0) {
+        deviceId = devices[0].deviceId;
+        logger.debug('Device found by location', {
+          location: locationStr,
+          deviceId,
+        });
+      } else {
+        // Fallback: try to find device by club name
+        if (club && club !== 'unknown') {
+          const devicesByClub = await deviceService.getAllDevices({ location: club });
+          if (devicesByClub.length > 0) {
+            deviceId = devicesByClub[0].deviceId;
+            logger.debug('Device found by club name', {
+              club,
+              deviceId,
+            });
+          } else {
+            logger.warn('No device found for location', {
+              location: locationStr,
+              club,
+            });
+          }
+        } else {
+          logger.warn('No device found for location', {
+            location: locationStr,
+            club,
+          });
+        }
+      }
+    } catch (error) {
+      logger.error('Error fetching device by location', {
+        location: location.toString(),
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Continue with 'unknown' deviceId
+    }
+    
     const receiptEventData: ReceiptEventData = {
-      device: '123',
-      amount: 0.01, // Fixed amount per documentation
-      membershipFee: 3,
+      device: deviceId,
+      amount: 2, // Fixed amount per documentation
+      membershipFee: 2,
       user: person.id?.toString() || 'unknown',
       location: location.toString(),
       club: club,
+      pulseClubSubscription, // Pass subscription data through event
     };
    
     logger.info('receiptEventData', receiptEventData);

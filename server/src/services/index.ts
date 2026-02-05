@@ -34,3 +34,7 @@ export { brpWebhookService, BRPWebhookService } from './BRPWebhookService';
 
 export { businessUnitService, BusinessUnitService } from './BusinessUnitService';
 
+export { brpApiService, BRPApiService } from './BRPApiService';
+
+export { brpUserService, BRPUserService } from './BRPUserService';
+

@@ -55,9 +55,21 @@ export const createApp = (): Express => {
 
   // Catch-all handler: serve React SPA for all non-API routes
   // This allows React Router to handle client-side routing
-  app.get('*', (req, res) => {
+  // IMPORTANT: Skip WebSocket upgrade requests - express-ws will handle them
+  app.get('*', (req, res, next) => {
     // Skip API, webhook, and WebSocket routes
-    if (req.path.startsWith('/api') || req.path.startsWith('/webhook') || req.path.startsWith('/ws') || req.path.startsWith('/client')) {
+    // Also skip if this is a WebSocket upgrade request (express-ws handles these)
+    if (
+      req.path.startsWith('/api') || 
+      req.path.startsWith('/webhook') || 
+      req.path.startsWith('/ws') || 
+      req.path.startsWith('/client') ||
+      req.headers.upgrade === 'websocket'
+    ) {
+      // For WebSocket routes, let express-ws handle it (don't send response)
+      if (req.headers.upgrade === 'websocket') {
+        return next(); // Pass to express-ws
+      }
       return res.status(404).json({ error: 'Not found' });
     }
     

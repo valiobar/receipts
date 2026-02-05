@@ -1,5 +1,6 @@
-import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, ReactNode } from 'react';
 import { authService } from '@/services/auth.service';
+import { getToken } from '@/utils/token';
 import type { User, LoginCredentials } from '@/types';
 
 /**
@@ -20,7 +21,8 @@ type AuthAction =
   | { type: 'LOGOUT' }
   | { type: 'REFRESH_TOKEN'; payload: string }
   | { type: 'SET_USER'; payload: User }
-  | { type: 'SET_LOADING'; payload: boolean };
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'INIT_AUTH'; payload: string | null };
 
 /**
  * Auth context value interface
@@ -33,14 +35,22 @@ interface AuthContextValue extends AuthState {
 }
 
 /**
+ * Initialize auth state from localStorage synchronously
+ */
+const getInitialAuthState = (): AuthState => {
+  const token = getToken();
+  return {
+    user: null,
+    token,
+    isAuthenticated: !!token,
+    isLoading: false,
+  };
+};
+
+/**
  * Initial auth state
  */
-const initialState: AuthState = {
-  user: null,
-  token: null,
-  isAuthenticated: false,
-  isLoading: false,
-};
+const initialState: AuthState = getInitialAuthState();
 
 /**
  * Auth reducer function
@@ -67,6 +77,7 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         token: action.payload,
+        isAuthenticated: true,
       };
     case 'SET_USER':
       return {
@@ -77,6 +88,13 @@ const authReducer = (state: AuthState, action: AuthAction): AuthState => {
       return {
         ...state,
         isLoading: action.payload,
+      };
+    case 'INIT_AUTH':
+      return {
+        ...state,
+        token: action.payload,
+        isAuthenticated: !!action.payload,
+        isLoading: false,
       };
     default:
       return state;
@@ -97,6 +115,12 @@ interface AuthProviderProps {
 
 function AuthProvider({ children }: AuthProviderProps): JSX.Element {
   const [state, dispatch] = useReducer(authReducer, initialState);
+
+  // Initialize auth state from localStorage on mount
+  useEffect(() => {
+    const token = getToken();
+    dispatch({ type: 'INIT_AUTH', payload: token });
+  }, []);
 
   /**
    * Login action

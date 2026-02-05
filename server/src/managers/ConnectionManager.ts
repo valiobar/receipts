@@ -154,6 +154,7 @@ class ConnectionManager {
    * Send message to specific device
    */
   sendToDevice(deviceId: string, message: string | object): boolean {
+    logger.info('Sending message to device', { deviceId, message });
     const ws = this.deviceConnections.get(deviceId);
     
     if (!ws || ws.readyState !== WebSocket.OPEN) {

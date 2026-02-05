@@ -23,88 +23,124 @@ interface DeviceMessage {
 export const setupDeviceHandler = (app: any, server: http.Server): void => {
   // express-ws is already initialized in server.ts
   // Just set up the route handler
-  app.ws('/ws/:deviceId', async (ws: WebSocket, req: any) => {
-    const deviceId = req.params.deviceId;
-    
-    logger.info('Device connection attempt', {
-      deviceId,
-    });
-    
-    // Validate device exists in database
-    try {
-      const device = await Device.findOne({ deviceId }).exec();
-      
-      if (!device) {
-        logger.warn('Device not found in database', { deviceId });
-        ws.close(1008, 'Invalid device ID');
-        return;
-      }
-      
-      // Register device connection
-      connectionManager.registerDevice(deviceId, ws);
-      
-      // Update device service
-      await deviceService.updateDeviceStatus(deviceId, {
-        status: true,
-        lastSeen: new Date(),
-      });
-      
-      // Process pending commands after a short delay (allow connection to stabilize)
-      setTimeout(async () => {
-        try {
-          await commandService.processPendingCommands(deviceId);
-        } catch (error) {
-          logger.error('Error processing pending commands on connect', {
-            deviceId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        }
-      }, 1000);
-      
-      // Handle device messages
-      ws.on('message', async (data: Buffer) => {
-        await handleDeviceMessage(deviceId, data.toString(), ws);
-      });
-      
-      // Handle device disconnect
-      ws.on('close', (code: number, reason: Buffer) => {
-        logger.info('Device disconnected', {
-          deviceId,
-          code,
-          reason: reason.toString(),
-        });
-        
-        connectionManager.removeDevice(deviceId);
-        
-        deviceService.updateDeviceStatus(deviceId, {
-          status: false,
-          lastSeen: new Date(),
-        }).catch((error) => {
-          logger.error('Error updating device status on disconnect', {
-            deviceId,
-            error: error instanceof Error ? error.message : String(error),
-          });
-        });
-      });
-      
-      // Handle errors
-      ws.on('error', (error: Error) => {
-        logger.error('Device socket error', {
-          deviceId,
-          error: error.message,
-        });
-      });
-      
-    } catch (error) {
-      logger.error('Error setting up device connection', {
-        deviceId,
-        error: error instanceof Error ? error.message : String(error),
-      });
-      ws.close(1011, 'Server error');
-    }
+  logger.info('Registering device WebSocket handler at /ws/:deviceId', {
+    hasAppWs: typeof app.ws === 'function',
+    appType: app.constructor?.name || typeof app,
   });
   
-  logger.info('Device WebSocket handler initialized');
+  if (typeof app.ws !== 'function') {
+    logger.error('app.ws is not a function! express-ws may not be initialized correctly.');
+    throw new Error('app.ws is not available. express-ws must be initialized before setting up handlers.');
+  }
+  
+  try {
+    app.ws('/ws/:deviceId', (ws: WebSocket, req: any) => {
+    logger.info('Device connection attempt', {
+      path: req.path,
+      url: req.url,
+      params: req.params,
+      deviceId: req.params.deviceId,
+      headers: req.headers,
+      method: req.method,
+    });
+    
+    const deviceId = req.params.deviceId;
+    
+    if (!deviceId) {
+      logger.error('Device ID missing from request', {
+        path: req.path,
+        url: req.url,
+        params: req.params,
+      });
+      ws.close(1008, 'Device ID required');
+      return;
+    }
+    
+    // Handle connection asynchronously
+    (async () => {
+      try {
+        // Validate device exists in database
+        const device = await Device.findOne({ deviceId }).exec();
+      
+        if (!device) {
+          logger.warn('Device not found in database', { deviceId });
+          ws.close(1008, 'Invalid device ID');
+          return;
+        }
+        
+        // Register device connection
+        connectionManager.registerDevice(deviceId, ws);
+        
+        // Update device service
+        await deviceService.updateDeviceStatus(deviceId, {
+          status: true,
+          lastSeen: new Date(),
+        });
+        
+        // Process pending commands after a short delay (allow connection to stabilize)
+        setTimeout(async () => {
+          try {
+            await commandService.processPendingCommands(deviceId);
+          } catch (error) {
+            logger.error('Error processing pending commands on connect', {
+              deviceId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          }
+        }, 1000);
+        
+        // Handle device messages
+        ws.on('message', async (data: Buffer) => {
+          await handleDeviceMessage(deviceId, data.toString(), ws);
+        });
+        
+        // Handle device disconnect
+        ws.on('close', (code: number, reason: Buffer) => {
+          logger.info('Device disconnected', {
+            deviceId,
+            code,
+            reason: reason.toString(),
+          });
+          
+          connectionManager.removeDevice(deviceId);
+          
+          deviceService.updateDeviceStatus(deviceId, {
+            status: false,
+            lastSeen: new Date(),
+          }).catch((error) => {
+            logger.error('Error updating device status on disconnect', {
+              deviceId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+          });
+        });
+        
+        // Handle errors
+        ws.on('error', (error: Error) => {
+          logger.error('Device socket error', {
+            deviceId,
+            error: error.message,
+          });
+        });
+        
+      } catch (error) {
+        logger.error('Error setting up device connection', {
+          deviceId,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        ws.close(1011, 'Server error');
+      }
+    })();
+  });
+  
+  logger.info('Device WebSocket handler initialized at /ws/:deviceId');
+  } catch (error) {
+    logger.error('Failed to register device WebSocket handler', {
+      error: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
+    });
+    throw error;
+  }
 };
 
 /**

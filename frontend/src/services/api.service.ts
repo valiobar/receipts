@@ -26,7 +26,6 @@ class ApiService {
   private client: AxiosInstance;
 
   constructor() {
-    console.log('API_URL', API_URL);
     this.client = axios.create({
       baseURL: API_URL,
       timeout: 30000,
@@ -61,7 +60,10 @@ class ApiService {
         if (error.response?.status === 401) {
           // Token expired or invalid - clear token and redirect to login
           removeToken();
-          window.location.href = '/login';
+          // Only redirect if we're not already on the login page
+          if (window.location.pathname !== '/login') {
+            window.location.href = '/login';
+          }
         }
         return Promise.reject(error);
       }

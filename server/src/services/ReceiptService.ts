@@ -1,6 +1,8 @@
-import { Receipt, ReceiptStatus, IReceiptDocument } from '../models';
+import { Receipt, ReceiptStatus, IReceiptDocument, CommandType, ICommandDocument } from '../models';
 import logger from '../config/winston';
 import ExcelJS from 'exceljs';
+import { brpUserService } from './BRPUserService';
+import type { BRPSubscription } from '../types/brp-api';
 
 // Receipt query filters
 export interface ReceiptFilters {
@@ -284,6 +286,92 @@ class ReceiptService {
    */
   async changeReceiptStatus(receiptId: string): Promise<IReceiptDocument | null> {
     return Receipt.changeStatus(receiptId);
+  }
+
+  /**
+   * Create a receipt document from a completed command
+   * Only creates receipts for RECEIPT type commands
+   */
+  async createReceiptFromCommand(command: ICommandDocument): Promise<IReceiptDocument | null> {
+    // Validate command type
+    if (command.commandType !== CommandType.RECEIPT) {
+      logger.debug('Command is not a receipt type, skipping receipt creation', {
+        commandId: command._id,
+        commandType: command.commandType,
+      });
+      return null;
+    }
+
+    try {
+      // Map Command fields to Receipt fields
+      const receiptData = {
+        device: command.deviceId,
+        amount: command.amount || '0',
+        MembershipFee: command.membershipFee || '0',
+        userNumber: command.userNumber || '',
+        location: command.location || '',
+        ip: command.webhookRequestIp || 'unknown',
+        Status: ReceiptStatus.PROCESSED,
+        ts: new Date(),
+      };
+
+      // Validate required fields
+      if (!receiptData.device || !receiptData.userNumber) {
+        logger.error('Missing required fields for receipt creation', {
+          commandId: command._id,
+          device: receiptData.device,
+          userNumber: receiptData.userNumber,
+        });
+        return null;
+      }
+
+      // Create and save Receipt document
+      const receipt = new Receipt(receiptData);
+      const savedReceipt = await receipt.save();
+
+      logger.info('Receipt created from command', {
+        receiptId: savedReceipt._id,
+        commandId: command._id,
+        device: command.deviceId,
+        userNumber: command.userNumber,
+      });
+
+      // Process Pulse Club amount if userNumber is a valid numeric ID (BRP person ID)
+      if (savedReceipt.userNumber) {
+        const personId = parseInt(savedReceipt.userNumber, 10);
+        if (!isNaN(personId) && personId > 0) {
+          // Only process if userNumber is a valid numeric ID (BRP person IDs are numeric)
+          try {
+            // Extract subscription from command if available
+            const pulseClubSubscription = command.pulseClubSubscription as BRPSubscription | undefined;
+            
+            // Pass subscription data to avoid duplicate API call
+            await brpUserService.processPulseClubAmount(personId, pulseClubSubscription);
+            logger.debug('Pulse Club amount processed after receipt creation', {
+              receiptId: savedReceipt._id,
+              personId,
+              subscriptionProvided: !!pulseClubSubscription,
+            });
+          } catch (error) {
+            logger.error('Error processing Pulse Club amount after receipt creation', {
+              receiptId: savedReceipt._id,
+              personId,
+              error: error instanceof Error ? error.message : String(error),
+            });
+            // Don't throw - receipt creation should still succeed
+          }
+        }
+      }
+
+      return savedReceipt;
+    } catch (error) {
+      logger.error('Error creating receipt from command', {
+        commandId: command._id,
+        error: error instanceof Error ? error.message : String(error),
+      });
+      // Don't throw - command completion should still succeed
+      return null;
+    }
   }
 }
 

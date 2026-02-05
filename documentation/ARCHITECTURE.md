@@ -228,6 +228,7 @@ graph TB
         DeviceCtrl[Device Controller]
         WebhookCtrl[Webhook Controller]
         SystemCtrl[System Controller]
+        BRPCtrl[BRP Controller]
     end
     
     subgraph "Service Layer"
@@ -236,6 +237,7 @@ graph TB
         DeviceSvc[Device Service]
         EventSvc[Event Service]
         AuthSvc[Auth Service]
+        BRPApiSvc[BRP API Service]
     end
     
     subgraph "Data Layer"
@@ -257,6 +259,7 @@ graph TB
     REST --> ReceiptCtrl
     REST --> DeviceCtrl
     REST --> SystemCtrl
+    REST --> BRPCtrl
     WS_Route --> DeviceHandler
     WS_Route --> ClientHandler
     DeviceHandler --> ConnMgr
@@ -270,6 +273,7 @@ graph TB
     WebhookCtrl --> EventSvc
     SystemCtrl --> DeviceSvc
     SystemCtrl --> CommandSvc
+    BRPCtrl --> BRPApiSvc
     
     ReceiptSvc --> ReceiptModel
     CommandSvc --> CommandModel
@@ -804,6 +808,118 @@ class DeviceService {
   }
 }
 ```
+
+### 7. BRP API Service
+
+**Purpose**: Handles authentication and API requests to BRP main API service
+
+**Location**: `server/src/services/BRPApiService.ts`
+
+**Responsibilities**:
+- Automatic authentication on server startup
+- Token management with expiration handling
+- Automatic token refresh before expiration
+- Automatic re-authentication on 401 errors
+- Make authenticated API calls to BRP main API (e.g., `GET /api/ver3/customers/{id}`)
+
+**Key Features**:
+- **Singleton Pattern**: Single instance exported as `brpApiService`
+- **Automatic Authentication**: Authenticates automatically when server starts (via `initializeServices()`)
+- **Token Management**: Stores authentication token in memory with expiration tracking
+- **Automatic Refresh**: Refreshes token before expiration (5-minute buffer)
+- **Refresh Token Support**: Uses BRP API refresh token endpoint (`POST /api/ver3/auth/refresh`)
+- **Concurrent Request Handling**: Promise-based token refresh to prevent concurrent login attempts
+- **401 Error Handling**: Automatically re-authenticates on 401 errors and retries the request
+
+**Token Management**:
+- Token stored in memory (singleton service instance)
+- Validates token expiration before use
+- Automatically refreshes token before expiration (5-minute buffer)
+- Handles concurrent requests during token refresh (promise-based locking)
+- Falls back to full login if refresh token expires
+
+**Authentication Flow**:
+1. Server startup: `initializeServices()` calls `brpApiService.login()`
+2. Service authenticates with BRP API using credentials from environment variables
+3. Token and refresh token are stored in memory
+4. Before each API call, token validity is checked
+5. If token is expired or near expiration, automatic refresh is triggered
+6. If refresh fails, full login is attempted
+7. On 401 errors, token is cleared and re-authentication is performed
+
+**Configuration**:
+- Environment variables required:
+  - `BRP_API_BASE_URL` - Base URL for BRP main API
+  - `BRP_API_KEY` - API key from documentation
+  - `BRP_API_USERNAME` - Username for authentication
+  - `BRP_API_PASSWORD` - Password for authentication
+- Service is optional - server starts even if BRP API is not configured
+
+**Pseudo Code**:
+```typescript
+class BRPApiService {
+  private token: BRPAuthToken | null = null;
+  private refreshPromise: Promise<void> | null = null;
+
+  // Login to BRP API
+  async login(): Promise<void> {
+    const response = await fetch(`${baseURL}/api/ver3/auth/login`, {
+      method: 'POST',
+      body: JSON.stringify({ username, password })
+    });
+    const data = await response.json();
+    this.updateTokenFromResponse(data);
+  }
+
+  // Get valid authentication token, refreshing if needed
+  async getAuthToken(): Promise<string> {
+    if (this.token && this.isTokenValid(this.token)) {
+      return this.token.token;
+    }
+    
+    // Prevent concurrent refreshes
+    if (this.refreshPromise) {
+      await this.refreshPromise;
+    }
+    
+    // Refresh or re-login
+    this.refreshPromise = this.refreshOrLogin();
+    await this.refreshPromise;
+    this.refreshPromise = null;
+    
+    return this.token!.token;
+  }
+
+  // Make authenticated request with automatic retry on 401
+  private async makeAuthenticatedRequest<T>(endpoint: string): Promise<T> {
+    const token = await this.getAuthToken();
+    const response = await fetch(`${baseURL}${endpoint}`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    // Handle 401 - refresh and retry
+    if (response.status === 401) {
+      this.token = null;
+      const newToken = await this.getAuthToken();
+      // Retry request with new token
+      return this.makeAuthenticatedRequest<T>(endpoint);
+    }
+    
+    return response.json();
+  }
+
+  // Get customer by ID
+  async getCustomerById(id: string | number): Promise<BRPCustomer> {
+    return this.makeAuthenticatedRequest<BRPCustomer>(`/api/ver3/customers/${id}`);
+  }
+}
+```
+
+**Integration**:
+- Called by `BRPController` for HTTP endpoints
+- Initialized automatically on server startup via `initializeServices()`
+- Uses same logging and error handling patterns as other services
+- Follows service layer pattern - no direct HTTP dependencies
 
 ---
 
