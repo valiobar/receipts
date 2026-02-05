@@ -173,9 +173,30 @@ commandSchema.statics.changeStatus = async function (
     return null;
   }
   // Set status based on isError flag
-  command.status = isError ? CommandStatus.PENDING : CommandStatus.COMPLETE;
-  command.tsProcessed = new Date();
-  return command.save();
+  // Only update if command is in PROCESSING status (to prevent updating already completed commands)
+  if (command.status === CommandStatus.PROCESSING) {
+    command.status = isError ? CommandStatus.ERROR : CommandStatus.COMPLETE;
+    command.tsProcessed = new Date();
+    return command.save();
+  }
+  // If not processing, return as-is (may be called for retry scenarios)
+  return command;
+};
+
+// Static method: Set command status to processing
+commandSchema.statics.setProcessing = async function (
+  id: number
+): Promise<ICommandDocument | null> {
+  const command = await this.findById(id);
+  if (!command) {
+    return null;
+  }
+  // Only set to processing if currently pending
+  if (command.status === CommandStatus.PENDING) {
+    command.status = CommandStatus.PROCESSING;
+    return command.save();
+  }
+  return command;
 };
 
 // Model interface extending Model with static methods
@@ -187,6 +208,7 @@ interface ICommandModel extends Model<ICommandDocument> {
     endDate: Date
   ): Promise<ICommandDocument[]>;
   changeStatus(id: number, isError?: boolean): Promise<ICommandDocument | null>;
+  setProcessing(id: number): Promise<ICommandDocument | null>;
 }
 
 // Export the model (must be after schema definition for pre-save hook reference)

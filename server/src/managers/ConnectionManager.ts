@@ -83,6 +83,12 @@ class ConnectionManager {
     
     // Broadcast device online status to clients
     this.broadcastDeviceStatus(deviceId, true);
+    
+    // Send info message to clients with device ID
+    this.broadcastToClients({
+      type: 'info',
+      message: `Device ${deviceId} connected`,
+    });
   }
 
   /**

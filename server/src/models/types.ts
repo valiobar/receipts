@@ -11,6 +11,7 @@ export enum CommandType {
 // Command statuses enum
 export enum CommandStatus {
   PENDING = 'pending',
+  PROCESSING = 'processing',
   COMPLETE = 'complete',
   ERROR = 'error',
 }

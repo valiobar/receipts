@@ -276,10 +276,14 @@ class CommandService {
         });
         // Command remains pending, will be processed when device reconnects
       } else {
+        // Mark command as processing before sending
+        await Command.setProcessing(pendingCommand._id);
+        
         logger.info('Command sent to device', {
           commandId: pendingCommand._id,
           device: deviceId,
           action: commandMessage.Action,
+          status: 'processing',
         });
         
         // Update device status to processing
@@ -384,15 +388,16 @@ class CommandService {
     processing: number;
     completed: number;
   }> {
-    const [pending, completed, error] = await Promise.all([
+    const [pending, processing, completed, error] = await Promise.all([
       Command.countDocuments({ status: CommandStatus.PENDING }).exec(),
+      Command.countDocuments({ status: CommandStatus.PROCESSING }).exec(),
       Command.countDocuments({ status: CommandStatus.COMPLETE }).exec(),
       Command.countDocuments({ status: CommandStatus.ERROR }).exec(),
     ]);
 
     return {
       pending,
-      processing: 0, // Commands are processed immediately, no "processing" state
+      processing,
       completed: completed + error, // Count both complete and error as "completed"
     };
   }
