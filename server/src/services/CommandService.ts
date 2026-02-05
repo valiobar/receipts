@@ -2,6 +2,8 @@ import { Command, CommandType, CommandStatus, ICommandDocument, Device } from '.
 import logger from '../config/winston';
 import type { ConnectionManager } from '../managers/ConnectionManager';
 import { ContextBuilder } from 'express-validator/lib/context-builder';
+import { receiptService } from './ReceiptService';
+import type { BRPSubscription } from '../types/brp-api';
 
 // Server command message format (matches protocol documentation)
 export interface ServerCommand {
@@ -40,7 +42,7 @@ class CommandService {
     membershipFee: number;
     user: string;
     location: string;
-    ip: string;
+    pulseClubSubscription?: BRPSubscription; // Optional: subscription data if already fetched
   }): Promise<ICommandDocument> {
     // Validate input
     if (!data.user || data.user.length < 2 || data.membershipFee <= 0) {
@@ -59,7 +61,7 @@ class CommandService {
       throw new Error('Duplicate receipt for same user');
     }
 
-    // Create new command
+    // Create new command with subscription data
     const command = new Command({
       commandType: CommandType.RECEIPT,
       deviceId: data.device,
@@ -68,7 +70,7 @@ class CommandService {
       userNumber: data.user,
       location: data.location,
       status: CommandStatus.PENDING,
-      webhookRequestIp: data.ip,
+      pulseClubSubscription: data.pulseClubSubscription, // Store subscription data
     });
 
     await command.save();
@@ -178,11 +180,12 @@ class CommandService {
     const devidePin = await Device.findOne({ deviceId: command.deviceId }).select('devicePin').exec();
     let pin = devidePin?.devicePin ||'';
     const operator = 'ROBO';
-    const clubReceiptN = await Command.countDocuments({ 
+    const documentCount = await Command.countDocuments({ 
       deviceId: command.deviceId, 
       commandType: CommandType.RECEIPT,
       status: CommandStatus.COMPLETE 
     });
+    const clubReceiptN=documentCount + 1;
     Command.findByIdAndUpdate(command._id, { clubReceiptN: clubReceiptN.toString() });
     const sequenceNumber = clubReceiptN.toString().padStart(7, '0');
     switch (command.commandType) {
@@ -312,6 +315,27 @@ class CommandService {
       status: command.status,
       device: command.deviceId,
     });
+
+    // Create receipt if command completed successfully and is a receipt type
+    if (command.status === CommandStatus.COMPLETE && command.commandType === CommandType.RECEIPT) {
+      try {
+        const receipt = await receiptService.createReceiptFromCommand(command);
+        if (receipt) {
+          logger.info('Receipt created from completed command', {
+            receiptId: receipt._id,
+            commandId: command._id,
+            device: command.deviceId,
+            user: command.userNumber,
+          });
+        }
+      } catch (error) {
+        logger.error('Error creating receipt from command', {
+          commandId: command._id,
+          error: error instanceof Error ? error.message : String(error),
+        });
+        // Don't throw - command status update should still succeed
+      }
+    }
 
     // Process next pending command for device
     await this.processPendingCommands(command.deviceId);

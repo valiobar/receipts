@@ -96,10 +96,10 @@ export const ReceiptList = ({ onReceiptClick }: ReceiptListProps): JSX.Element =
 
   if (receipts.length === 0) {
     return (
-      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
         <div className="max-w-md mx-auto">
           <svg
-            className="mx-auto h-12 w-12 text-gray-400"
+            className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
@@ -112,8 +112,8 @@ export const ReceiptList = ({ onReceiptClick }: ReceiptListProps): JSX.Element =
               d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
             />
           </svg>
-          <h3 className="mt-4 text-lg font-medium text-gray-900">No receipts found</h3>
-          <p className="mt-2 text-sm text-gray-500">
+          <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No receipts found</h3>
+          <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
             {pagination && pagination.total > 0
               ? 'Try adjusting your filters to see more results.'
               : 'No receipts match your current filters.'}
@@ -142,10 +142,10 @@ export const ReceiptList = ({ onReceiptClick }: ReceiptListProps): JSX.Element =
 
       {/* Pagination Controls */}
       {pagination && pagination.total > 0 && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-4">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             {/* Results Info */}
-            <div className="text-sm text-gray-700">
+            <div className="text-sm text-gray-700 dark:text-gray-300">
               Showing{' '}
               <span className="font-medium">
                 {pagination.offset + 1} - {Math.min(pagination.offset + pagination.limit, pagination.total)}
@@ -173,7 +173,7 @@ export const ReceiptList = ({ onReceiptClick }: ReceiptListProps): JSX.Element =
                     return (
                       <span
                         key={`ellipsis-${index}`}
-                        className="px-2 text-gray-500"
+                        className="px-2 text-gray-500 dark:text-gray-400"
                       >
                         ...
                       </span>
@@ -191,8 +191,8 @@ export const ReceiptList = ({ onReceiptClick }: ReceiptListProps): JSX.Element =
                         transition-colors duration-200
                         ${
                           isActive
-                            ? 'bg-primary-500 text-white'
-                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            ? 'bg-primary-500 dark:bg-primary-600 text-white'
+                            : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'
                         }
                       `.trim()}
                       aria-label={`Go to page ${pageNum}`}

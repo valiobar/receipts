@@ -2,6 +2,8 @@ import { eventService } from './EventService';
 import { commandService } from './CommandService';
 import { deviceService } from './DeviceService';
 import { brpWebhookService } from './BRPWebhookService';
+import { businessUnitService } from './BusinessUnitService';
+import { brpApiService } from './BRPApiService';
 import { connectionManager } from '../managers/ConnectionManager';
 import logger from '../config/winston';
 
@@ -23,6 +25,24 @@ export const initializeServices = async (): Promise<void> => {
 
     // Register BRP webhooks with external API
     await brpWebhookService.registerWebhooks();
+
+    // Initialize BRP API authentication (optional - won't fail if not configured)
+    try {
+      if (brpApiService.isConfigured()) {
+        await brpApiService.login();
+        logger.info('BRP API authentication successful');
+      } else {
+        logger.debug('BRP API not configured - skipping authentication');
+      }
+    } catch (error) {
+      // Log warning but don't fail server startup if BRP API is not configured
+      logger.warn('BRP API authentication failed (optional feature)', {
+        error: error instanceof Error ? error.message : String(error),
+      });
+    }
+
+    // Initialize business units cache
+    await businessUnitService.initialize();
 
     logger.info('Services initialized successfully');
   } catch (error: unknown) {

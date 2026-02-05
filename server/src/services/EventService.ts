@@ -2,17 +2,17 @@ import { EventEmitter } from 'events';
 import logger from '../config/winston';
 import { commandService } from './CommandService';
 import { connectionManager } from '../managers/ConnectionManager';
+import type { BRPSubscription } from '../types/brp-api';
 
 // Event data interfaces
 export interface ReceiptEventData {
-  club: string;
-  zone?: string;
+  club: string; 
   membershipFee: number;
   user: string;
-  device: string;
-  ip: string;
+  device: string;  
   amount: number;
   location: string;
+  pulseClubSubscription?: BRPSubscription; // Optional: subscription data if already fetched
 }
 
 export interface DailyReportEventData {
@@ -126,7 +126,7 @@ class EventService extends EventEmitter {
           membershipFee: data.membershipFee,
           user: data.user,
           location: data.location,
-          ip: data.ip,
+          pulseClubSubscription: data.pulseClubSubscription, // Pass subscription data
         });
 
         logger.info('Receipt command created from event', {
@@ -138,7 +138,7 @@ class EventService extends EventEmitter {
         // Broadcast receipt event to clients (matches protocol - no type wrapper)
         connectionManager.broadcastToClients({
           MessageId: command._id.toString(),
-          UnicSaleNum:'PIN1-' +command.clubReceiptN?.toString() || '0',
+          UnicSaleNum: command.clubReceiptN?.toString() || '0',
           action: 'print',
           price: command.amount || '0',
           user: command.userNumber || '',

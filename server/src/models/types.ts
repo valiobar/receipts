@@ -1,3 +1,5 @@
+import type { BRPSubscription } from '../types/brp-api';
+
 // Command types enum
 export enum CommandType {
   RECEIPT = 'receipt',
@@ -50,6 +52,7 @@ export interface ICommand {
   customCmdId?: string;
   dataCmd?: string;
   tsProcessed?: Date;
+  pulseClubSubscription?: BRPSubscription;
   ts: Date;
 }
 
@@ -80,5 +83,17 @@ export interface IUser {
   roles: string[];
   createdAt: Date;
   updatedAt: Date;
+}
+
+// BRP User interface
+export interface IBRPUser {
+  _id?: string;
+  brpId: number;
+  firstName: string;
+  lastName: string;
+  user?: string; // Optional user identifier or reference
+  customerNumber: string;
+  amount: number;
+  tsCreated: Date;
 }
 

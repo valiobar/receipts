@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { SignOptions } from 'jsonwebtoken';
 import { User, IUserDocument } from '../models';
 import logger from '../config/winston';
 import { env } from '../utils/env';
@@ -40,8 +40,8 @@ class AuthService {
   private readonly jwtExpiresIn: string;
 
   constructor() {
-    this.jwtSecret = env.jwtSecret || 'default-secret-change-in-production';
-    this.jwtExpiresIn = env.jwtExpiresIn || '24h';
+    this.jwtSecret = env.jwtSecret ?? 'default-secret-change-in-production';
+    this.jwtExpiresIn = env.jwtExpiresIn ?? '24h';
     
     if (!env.jwtSecret) {
       logger.warn('JWT_SECRET not set, using default (NOT SECURE FOR PRODUCTION)');
@@ -86,7 +86,7 @@ class AuthService {
 
     const token = jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiresIn,
-    });
+    } as SignOptions);
 
     // Calculate expiration time in seconds
     const expiresIn = this.parseExpiresIn(this.jwtExpiresIn);
@@ -149,7 +149,7 @@ class AuthService {
 
     const newToken = jwt.sign(payload, this.jwtSecret, {
       expiresIn: this.jwtExpiresIn,
-    });
+    } as SignOptions);
 
     const expiresIn = this.parseExpiresIn(this.jwtExpiresIn);
 

@@ -141,6 +141,52 @@ export interface BRPSubscription {
 }
 
 /**
+ * BRP Business Unit Reference (minimal structure in events)
+ */
+export interface BRPBusinessUnitRef {
+  id: number;
+  name?: string;
+  timeZone?: string;
+}
+
+/**
+ * BRP Person Reference (minimal structure in events)
+ */
+export interface BRPPersonRef {
+  id: number;
+  firstName?: string;
+  lastName?: string;
+  ssn?: string;
+  email?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * BRP Reader Reference
+ */
+export interface BRPReaderRef {
+  id: number;
+  name?: string;
+  [key: string]: unknown;
+}
+
+/**
+ * BRP Passage Try Event Data
+ * Data structure for PASSAGE_TRY events
+ */
+export interface BRPPassageTryData {
+  passageTry: {
+    id: number;
+    businessUnit: BRPBusinessUnitRef;
+    person: BRPPersonRef;
+    reader: BRPReaderRef;
+    result: number; // 0 = success, other values indicate failure/denial
+    time: string; // ISO 8601 timestamp
+    [key: string]: unknown;
+  };
+}
+
+/**
  * BRP Booking Event Data (common structure for booking events)
  */
 export interface BRPBookingEventData {
@@ -153,12 +199,20 @@ export interface BRPBookingEventData {
 }
 
 /**
+ * Union type for all possible event data structures
+ */
+export type BRPEventData = 
+  | BRPPassageTryData 
+  | BRPBookingEventData 
+  | Record<string, unknown>; // Fallback for other event types
+
+/**
  * BRP Webhook Payload
  * The actual structure depends on the event type and data projection
  */
 export interface BRPWebhookPayload {
   event: BRPEventType;
-  data: BRPBookingEventData | BRPSubscription | BRPPerson | Record<string, unknown>;
+  data: BRPEventData;
   timestamp?: string;
   [key: string]: unknown; // Allow additional fields
 }

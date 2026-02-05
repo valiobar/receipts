@@ -15,6 +15,7 @@
    - [Reports](#reports-endpoints)
    - [Webhooks](#webhook-endpoints)
    - [System](#system-endpoints)
+   - [BRP API](#brp-api-endpoints)
 8. [Data Models](#data-models)
 9. [Examples](#examples)
 10. [SDK Examples](#sdk-examples)
@@ -1046,6 +1047,154 @@ Authorization: Bearer {token}
   }
 }
 ```
+
+---
+
+## BRP API Endpoints
+
+The BRP API endpoints provide access to BRP main API service for fetching customer data and other operations. These endpoints require BRP API to be configured via environment variables.
+
+**Note**: BRP API authentication is handled automatically by the `BRPApiService`. The service authenticates on server startup and manages tokens automatically. Manual login endpoint is provided for testing purposes only.
+
+### GET /api/brp/customers/:id
+
+Retrieve customer information from BRP main API by customer ID.
+
+**Authentication:** Required (Bearer token - JWT authentication for this API, not BRP API)
+
+**URL Parameters:**
+
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| `id` | string \| number | Yes | Customer ID from BRP system |
+
+**Request Headers:**
+```
+Authorization: Bearer {jwt_token}
+```
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "id": 12345,
+    "firstName": "John",
+    "lastName": "Doe",
+    "ssn": "1234567890",
+    "email": "john.doe@example.com"
+  }
+}
+```
+
+**Response: 404 Not Found**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "NOT_FOUND",
+    "message": "Customer not found"
+  }
+}
+```
+
+**Response: 503 Service Unavailable (BRP API Not Configured)**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "SERVICE_UNAVAILABLE",
+    "message": "BRP API is not configured"
+  }
+}
+```
+
+**Response: 500 Internal Server Error**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "Failed to fetch customer"
+  }
+}
+```
+
+**cURL Example:**
+```bash
+curl -X GET "https://api.fit.bg/api/brp/customers/12345" \
+  -H "Authorization: Bearer {jwt_token}"
+```
+
+**Error Handling:**
+- If BRP API is not configured (missing environment variables), returns `503 Service Unavailable`
+- If customer is not found in BRP system, returns `404 Not Found`
+- If BRP API authentication fails, service automatically retries authentication
+- If BRP API returns 401, service automatically refreshes token and retries request
+
+---
+
+### POST /api/brp/auth/login
+
+Manually trigger BRP API authentication (optional, for testing). **Note**: BRP API authenticates automatically on server startup. This endpoint is provided for testing and manual re-authentication.
+
+**Authentication:** Required (Bearer token - JWT authentication for this API)
+
+**Request Headers:**
+```
+Authorization: Bearer {jwt_token}
+```
+
+**Response: 200 OK**
+```json
+{
+  "success": true,
+  "data": {
+    "message": "BRP API login successful"
+  }
+}
+```
+
+**Response: 401 Unauthorized (Invalid BRP API Credentials)**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "AUTH_INVALID",
+    "message": "Invalid BRP API credentials"
+  }
+}
+```
+
+**Response: 503 Service Unavailable (BRP API Not Configured)**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "SERVICE_UNAVAILABLE",
+    "message": "BRP API is not configured"
+  }
+}
+```
+
+**Response: 500 Internal Server Error**
+```json
+{
+  "success": false,
+  "error": {
+    "code": "INTERNAL_ERROR",
+    "message": "Failed to login to BRP API"
+  }
+}
+```
+
+**cURL Example:**
+```bash
+curl -X POST "https://api.fit.bg/api/brp/auth/login" \
+  -H "Authorization: Bearer {jwt_token}"
+```
+
+**Note**: This endpoint is optional and primarily for testing. In normal operation, BRP API authentication is handled automatically by the service on server startup.
 
 ---
 

@@ -58,8 +58,8 @@ export const Dashboard = (): JSX.Element => {
     <div className="space-y-6">
       {/* Page Header */}
       <div>
-        <h1 className="text-2xl font-bold text-gray-900">Dashboard</h1>
-        <p className="mt-1 text-sm text-gray-600">
+        <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Dashboard</h1>
+        <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
           Overview of your receipt management system
         </p>
       </div>
@@ -67,17 +67,17 @@ export const Dashboard = (): JSX.Element => {
       {/* Statistics Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
         {/* Total Receipts Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Recent Receipts</p>
-              <p className="mt-2 text-3xl font-bold text-gray-900">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Recent Receipts</p>
+              <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
                 {receipts.length}
               </p>
             </div>
-            <div className="p-3 bg-blue-100 rounded-lg">
+            <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
               <svg
-                className="h-6 w-6 text-blue-600"
+                className="h-6 w-6 text-blue-600 dark:text-blue-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -95,17 +95,17 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Online Devices Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Online Devices</p>
-              <p className="mt-2 text-3xl font-bold text-green-600">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online Devices</p>
+              <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
                 {systemStatus?.devices.online ?? onlineDevicesCount}
               </p>
             </div>
-            <div className="p-3 bg-green-100 rounded-lg">
+            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
               <svg
-                className="h-6 w-6 text-green-600"
+                className="h-6 w-6 text-green-600 dark:text-green-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -123,17 +123,17 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Offline Devices Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Offline Devices</p>
-              <p className="mt-2 text-3xl font-bold text-red-600">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Offline Devices</p>
+              <p className="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">
                 {systemStatus?.devices.offline ?? offlineDevicesCount}
               </p>
             </div>
-            <div className="p-3 bg-red-100 rounded-lg">
+            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
               <svg
-                className="h-6 w-6 text-red-600"
+                className="h-6 w-6 text-red-600 dark:text-red-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -151,17 +151,17 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Pending Commands Card */}
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600">Pending Commands</p>
-              <p className="mt-2 text-3xl font-bold text-yellow-600">
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Pending Commands</p>
+              <p className="mt-2 text-3xl font-bold text-yellow-600 dark:text-yellow-400">
                 {systemStatus?.commands.pending ?? 0}
               </p>
             </div>
-            <div className="p-3 bg-yellow-100 rounded-lg">
+            <div className="p-3 bg-yellow-100 dark:bg-yellow-900/30 rounded-lg">
               <svg
-                className="h-6 w-6 text-yellow-600"
+                className="h-6 w-6 text-yellow-600 dark:text-yellow-400"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -181,17 +181,17 @@ export const Dashboard = (): JSX.Element => {
 
       {/* System Status Section */}
       {systemStatus && (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          <h2 className="text-lg font-semibold text-gray-900 mb-4">System Status</h2>
+        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">System Status</h2>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
-              <p className="text-sm text-gray-600 mb-1">Status</p>
-              <p className="text-sm font-medium text-gray-900 capitalize">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white capitalize">
                 {systemStatus.status}
               </p>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Database</p>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Database</p>
               <div className="flex items-center gap-2">
                 <span
                   className={`
@@ -200,14 +200,14 @@ export const Dashboard = (): JSX.Element => {
                   `.trim()}
                   aria-label={systemStatus.database.connected ? 'Connected' : 'Disconnected'}
                 />
-                <p className="text-sm font-medium text-gray-900">
+                <p className="text-sm font-medium text-gray-900 dark:text-white">
                   {systemStatus.database.connected ? 'Connected' : 'Disconnected'}
                 </p>
               </div>
             </div>
             <div>
-              <p className="text-sm text-gray-600 mb-1">Uptime</p>
-              <p className="text-sm font-medium text-gray-900">
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Uptime</p>
+              <p className="text-sm font-medium text-gray-900 dark:text-white">
                 {Math.floor(systemStatus.uptime / 3600)}h{' '}
                 {Math.floor((systemStatus.uptime % 3600) / 60)}m
               </p>
@@ -219,20 +219,20 @@ export const Dashboard = (): JSX.Element => {
       {/* Recent Receipts Section */}
       <div>
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900">Recent Receipts</h2>
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Receipts</h2>
           <Link
             to="/receipts"
-            className="text-sm font-medium text-primary-600 hover:text-primary-700"
+            className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
           >
             View all →
           </Link>
         </div>
 
         {recentReceipts.length === 0 ? (
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
             <div className="max-w-md mx-auto">
               <svg
-                className="mx-auto h-12 w-12 text-gray-400"
+                className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
                 fill="none"
                 viewBox="0 0 24 24"
                 stroke="currentColor"
@@ -245,8 +245,8 @@ export const Dashboard = (): JSX.Element => {
                   d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
                 />
               </svg>
-              <h3 className="mt-4 text-lg font-medium text-gray-900">No receipts yet</h3>
-              <p className="mt-2 text-sm text-gray-500">
+              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No receipts yet</h3>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
                 Receipts will appear here as they are processed.
               </p>
             </div>

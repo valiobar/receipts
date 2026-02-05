@@ -47,3 +47,4 @@ export interface InfoEvent {
 // Union type for all client messages
 export type ClientMessage = ReceiptEvent | DeviceStatusEvent | NoPaperEvent | SpadNaprejenieEvent | InfoEvent;
 
+

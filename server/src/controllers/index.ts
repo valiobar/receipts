@@ -13,3 +13,6 @@ export * from './webhook-controller';
 // System controllers
 export * from './system-controller';
 
+// BRP API controllers
+export * from './brp-controller';
+

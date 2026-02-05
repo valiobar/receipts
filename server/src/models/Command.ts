@@ -65,6 +65,10 @@ const commandSchema = new Schema<ICommandDocument>(
     tsProcessed: {
       type: Date,
     },
+    pulseClubSubscription: {
+      type: Schema.Types.Mixed, // Store as flexible object
+      required: false,
+    },
     ts: {
       type: Date,
       default: Date.now,

@@ -50,27 +50,27 @@ export const Login = (): JSX.Element => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
+    <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900 py-12 px-4 sm:px-6 lg:px-8">
       <div className="max-w-md w-full space-y-8">
         {/* Header */}
         <div className="text-center">
-          <h2 className="mt-6 text-3xl font-extrabold text-gray-900">
+          <h2 className="mt-6 text-3xl font-extrabold text-gray-900 dark:text-white">
             Receipt Management System
           </h2>
-          <p className="mt-2 text-sm text-gray-600">
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
             Sign in to your account
           </p>
         </div>
 
         {/* Login Form */}
         <form className="mt-8 space-y-6" onSubmit={handleSubmit}>
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-8 space-y-6">
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-8 space-y-6">
             {/* Error Message */}
             {error && (
-              <div className="bg-red-50 border border-red-200 rounded-lg p-4">
+              <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
                 <div className="flex items-start gap-3">
                   <svg
-                    className="h-5 w-5 text-red-500 mt-0.5 flex-shrink-0"
+                    className="h-5 w-5 text-red-500 dark:text-red-400 mt-0.5 flex-shrink-0"
                     fill="none"
                     viewBox="0 0 24 24"
                     stroke="currentColor"
@@ -84,8 +84,8 @@ export const Login = (): JSX.Element => {
                     />
                   </svg>
                   <div className="flex-1">
-                    <p className="text-sm font-medium text-red-800">Error</p>
-                    <p className="mt-1 text-sm text-red-600">{error}</p>
+                    <p className="text-sm font-medium text-red-800 dark:text-red-300">Error</p>
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{error}</p>
                   </div>
                 </div>
               </div>
