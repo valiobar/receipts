@@ -49,3 +49,4 @@ export type ClientMessage = ReceiptEvent | DeviceStatusEvent | NoPaperEvent | Sp
 
 
 
+
