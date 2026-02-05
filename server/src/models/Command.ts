@@ -173,7 +173,7 @@ commandSchema.statics.changeStatus = async function (
     return null;
   }
   // Set status based on isError flag
-  command.status = isError ? CommandStatus.ERROR : CommandStatus.COMPLETE;
+  command.status = isError ? CommandStatus.PENDING : CommandStatus.COMPLETE;
   command.tsProcessed = new Date();
   return command.save();
 };
