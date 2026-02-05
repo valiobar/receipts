@@ -1,11 +1,15 @@
 import { JSX, ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
+import { useWebSocket } from '@/hooks';
 
 interface LayoutProps {
   children: ReactNode;
 }
 
 export const Layout = ({ children }: LayoutProps): JSX.Element => {
+  // Initialize WebSocket connection when authenticated
+  useWebSocket();
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
       {/* Main layout container */}

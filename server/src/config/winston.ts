@@ -7,7 +7,7 @@ const logsDir = path.join(__dirname, '../../logs');
 
 // Create logger instance
 const logger = winston.createLogger({
-  level: env.nodeEnv === 'production' ? 'info' : 'debug',
+  level: env.nodeEnv === 'production' ? 'warn' : 'debug',
   format: winston.format.combine(
     winston.format.timestamp({ format: 'YYYY-MM-DD HH:mm:ss' }),
     winston.format.errors({ stack: true }),

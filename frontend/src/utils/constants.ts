@@ -8,7 +8,7 @@ export const API_URL = import.meta.env.VITE_API_URL || (import.meta.env.DEV ? 'h
  * WebSocket URL from environment variable
  * Defaults to ws://localhost:3000 for development or empty for production (relative)
  */
-export const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : '');
+export const WS_URL = import.meta.env.VITE_WS_URL || (import.meta.env.DEV ? 'ws://localhost:3001' : '');
 
 /**
  * Application constants
@@ -51,5 +51,6 @@ export const USER_ROLES = {
   ADMIN: 'Admin',
   SUPER: 'Super',
 } as const;
+
 
 

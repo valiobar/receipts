@@ -48,3 +48,4 @@ export interface InfoEvent {
 export type ClientMessage = ReceiptEvent | DeviceStatusEvent | NoPaperEvent | SpadNaprejenieEvent | InfoEvent;
 
 
+

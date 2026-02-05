@@ -1,4 +1,4 @@
-import { JSX } from 'react';
+import { JSX, useEffect } from 'react';
 import { useDevices } from '@/hooks/useDevices';
 import { DeviceCard } from '@/components/devices/DeviceCard';
 import { Loading } from '@/components/common/Loading';
@@ -10,7 +10,9 @@ interface DeviceListProps {
 
 export const DeviceList = ({ onDeviceClick }: DeviceListProps): JSX.Element => {
   const { devices, selectedDevice, isLoading, selectDevice } = useDevices();
-
+  useEffect(() => {
+    console.log('devices', devices);
+  }, [devices]);
   const handleDeviceClick = (device: Device): void => {
     if (onDeviceClick) {
       onDeviceClick(device);

@@ -75,7 +75,7 @@ class BRPUserService {
         const customer = await brpApiService.getCustomerById(personId);
 
         // Calculate initial amount: subscription price amount minus 1
-        const subscriptionPriceAmount = subscription.price.amount / 100;
+        const subscriptionPriceAmount = subscription.price.amount / 200;
         const initialAmount = Math.max(0, subscriptionPriceAmount - 1);
 
         // Create new BRP user

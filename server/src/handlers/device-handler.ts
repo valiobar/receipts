@@ -199,7 +199,7 @@ async function handleDeviceMessage(
       const isError = message.Status === 'error';
       
       try {
-        await commandService.updateCommandStatus(message.MessageId, isError);
+       // await commandService.updateCommandStatus(message.MessageId, isError);
         
         if (isError) {
           logger.error('Command error from device', {

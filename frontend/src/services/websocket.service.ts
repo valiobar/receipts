@@ -1,4 +1,3 @@
-import { io, Socket } from 'socket.io-client';
 import { getToken } from '@/utils/token';
 import { WS_URL } from '@/utils/constants';
 import type {
@@ -23,12 +22,15 @@ export const WEBSOCKET_EVENTS = {
 /**
  * WebSocket service for managing real-time connection to backend
  * Handles connection, reconnection, and message routing
+ * Uses native WebSocket API (not Socket.IO) to match server implementation
  */
 class WebSocketService {
-  private socket: Socket | null = null;
+  private socket: WebSocket | null = null;
   private reconnectAttempts = 0;
   private maxReconnectAttempts = 5;
   private reconnectDelay = 1000; // Start with 1 second
+  private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
+  private isIntentionalDisconnect = false;
 
   /**
    * Connect to WebSocket server
@@ -36,27 +38,45 @@ class WebSocketService {
    */
   connect(token?: string): void {
     // Disconnect existing connection if any
-    if (this.socket?.connected) {
+    if (this.socket && this.socket.readyState === WebSocket.OPEN) {
       this.disconnect();
     }
 
-    const authToken = token || getToken();
-    const wsUrl = WS_URL || (import.meta.env.DEV ? 'ws://localhost:3000' : '');
+    // Clear any pending reconnection
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
+    }
+
+    const authToken = token || getToken() || undefined;
+    const wsUrl = WS_URL || (import.meta.env.DEV ? 'ws://localhost:3001' : '');
 
     // Build connection URL
-    const url = wsUrl ? `${wsUrl}/client` : '/client';
+    // WS_URL is already in ws:// or wss:// format, or empty for relative URL
+    let url: string;
+    if (wsUrl) {
+      // Use the provided WS_URL directly and append /client path
+      url = `${wsUrl}/client`;
+    } else {
+      // Relative URL - use current protocol
+      const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+      url = `${protocol}//${window.location.host}/client`;
+    }
 
-    // Create socket connection with authentication
-    this.socket = io(url, {
-      transports: ['websocket'],
-      auth: authToken ? { token: authToken } : undefined,
-      reconnection: true,
-      reconnectionAttempts: this.maxReconnectAttempts,
-      reconnectionDelay: this.reconnectDelay,
-      reconnectionDelayMax: 10000,
-    });
+    // Add token as query parameter if provided (server may use this for auth)
+    if (authToken) {
+      url += `?token=${encodeURIComponent(authToken)}`;
+    }
 
-    this.setupEventHandlers();
+    console.log('Connecting to WebSocket:', url);
+
+    try {
+      this.socket = new WebSocket(url);
+      this.setupEventHandlers();
+    } catch (error) {
+      console.error('Failed to create WebSocket connection:', error);
+      this.handleReconnection();
+    }
   }
 
   /**
@@ -68,41 +88,37 @@ class WebSocketService {
     }
 
     // Connection established
-    this.socket.on('connect', () => {
+    this.socket.onopen = () => {
       console.log('WebSocket connected');
       this.reconnectAttempts = 0;
       this.reconnectDelay = 1000; // Reset delay
-    });
+    };
 
     // Connection error
-    this.socket.on('connect_error', (error: Error) => {
+    this.socket.onerror = (error: Event) => {
       console.error('WebSocket connection error:', error);
-      this.handleReconnection();
-    });
+      // onerror is called before onclose, so we'll handle reconnection in onclose
+    };
 
     // Disconnected
-    this.socket.on('disconnect', (reason: string) => {
-      console.log('WebSocket disconnected:', reason);
+    this.socket.onclose = (event: CloseEvent) => {
+      console.log('WebSocket disconnected:', event.code, event.reason);
       
-      // Attempt reconnection if not intentional
-      if (reason !== 'io client disconnect') {
+      // Attempt reconnection if not intentional and not a normal closure
+      if (!this.isIntentionalDisconnect && event.code !== 1000) {
         this.handleReconnection();
+      } else {
+        this.isIntentionalDisconnect = false;
       }
-    });
+    };
 
     // Handle incoming messages
-    // Note: Backend uses plain WebSocket, so we listen to 'message' event
-    // Socket.IO might need custom handling - adjust based on actual backend implementation
-    this.socket.on('message', (data: string | ClientMessage) => {
+    this.socket.onmessage = (event: MessageEvent) => {
+      // WebSocket messages can be string or Blob/ArrayBuffer
+      // Our server sends JSON strings
+      const data = typeof event.data === 'string' ? event.data : event.data.toString();
       this.handleMessage(data);
-    });
-
-    // Fallback: Handle raw data if Socket.IO receives it differently
-    this.socket.onAny((eventName: string, data: unknown) => {
-      if (eventName === 'message' || eventName === 'data') {
-        this.handleMessage(data as string | ClientMessage);
-      }
-    });
+    };
   }
 
   /**
@@ -110,7 +126,9 @@ class WebSocketService {
    */
   private handleMessage(data: string | ClientMessage): void {
     let message: ClientMessage;
-
+   
+    console.log('Received WebSocket message:', data);
+    
     // Parse if string, otherwise use as-is
     if (typeof data === 'string') {
       try {
@@ -225,13 +243,14 @@ class WebSocketService {
     this.reconnectAttempts++;
     this.reconnectDelay = Math.min(this.reconnectDelay * 2, 10000); // Max 10 seconds
 
-    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+    console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts}) in ${this.reconnectDelay}ms...`);
 
-    // Socket.IO handles reconnection automatically, but we track attempts
-    setTimeout(() => {
-      if (this.socket && !this.socket.connected) {
-        this.socket.connect();
-      }
+    // Schedule reconnection
+    this.reconnectTimer = setTimeout(() => {
+      this.reconnectTimer = null;
+      // Get token again in case it was refreshed
+      const token = getToken() || undefined;
+      this.connect(token);
     }, this.reconnectDelay);
   }
 
@@ -239,12 +258,20 @@ class WebSocketService {
    * Disconnect from WebSocket server
    */
   disconnect(): void {
-    if (this.socket) {
-      this.socket.disconnect();
-      this.socket = null;
-      this.reconnectAttempts = 0;
-      this.reconnectDelay = 1000;
+    this.isIntentionalDisconnect = true;
+    
+    if (this.reconnectTimer) {
+      clearTimeout(this.reconnectTimer);
+      this.reconnectTimer = null;
     }
+
+    if (this.socket) {
+      this.socket.close(1000, 'Client disconnect'); // Normal closure
+      this.socket = null;
+    }
+
+    this.reconnectAttempts = 0;
+    this.reconnectDelay = 1000;
   }
 
   /**
@@ -252,18 +279,16 @@ class WebSocketService {
    * @returns True if connected
    */
   isConnected(): boolean {
-    return this.socket?.connected ?? false;
+    return this.socket?.readyState === WebSocket.OPEN;
   }
 
   /**
    * Get current socket instance (for advanced usage)
-   * @returns Socket instance or null
+   * @returns WebSocket instance or null
    */
-  getSocket(): Socket | null {
+  getSocket(): WebSocket | null {
     return this.socket;
   }
 }
 
 export const websocketService = new WebSocketService();
-
-
