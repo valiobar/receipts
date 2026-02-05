@@ -175,7 +175,7 @@ commandSchema.statics.changeStatus = async function (
   // Set status based on isError flag
   // Only update if command is in PROCESSING status (to prevent updating already completed commands)
   if (command.status === CommandStatus.PROCESSING) {
-    command.status = isError ? CommandStatus.ERROR : CommandStatus.COMPLETE;
+    command.status = isError ? CommandStatus.PENDING : CommandStatus.COMPLETE;
     command.tsProcessed = new Date();
     return command.save();
   }
