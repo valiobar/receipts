@@ -1,9 +1,14 @@
+/**
+ * Device status types
+ */
+export type DeviceStatus = 'ready' | 'processing' | 'error' | 'noPapper' | 'offline';
+
 export interface Device {
   _id: string;
   deviceId: string;
   name: string;
   location: string;
-  status: boolean;
+  status: DeviceStatus;
   online: boolean;
   lastSeen?: string;
   devicePin?: string;

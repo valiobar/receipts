@@ -277,7 +277,7 @@ class CommandService {
         // Command remains pending, will be processed when device reconnects
       } else {
         // Mark command as processing before sending
-        await Command.setProcessing(pendingCommand._id);
+       // await Command.setProcessing(pendingCommand._id);
         
         logger.info('Command sent to device', {
           commandId: pendingCommand._id,
@@ -338,6 +338,31 @@ class CommandService {
           error: error instanceof Error ? error.message : String(error),
         });
         // Don't throw - command status update should still succeed
+      }
+
+      // Broadcast receipt event to clients when command completes (matches protocol - no type wrapper)
+      if (this.connectionManager) {
+        try {
+          this.connectionManager.broadcastToClients({
+            MessageId: command._id.toString(),
+            UnicSaleNum: command.clubReceiptN?.toString() || '0',
+            action: 'print',
+            price: command.amount || '0',
+            user: command.userNumber || '',
+            location: command.location || '',
+          });
+          logger.info('Receipt event broadcasted to clients', {
+            commandId: command._id,
+            device: command.deviceId,
+            user: command.userNumber,
+          });
+        } catch (error) {
+          logger.error('Error broadcasting receipt event to clients', {
+            commandId: command._id,
+            error: error instanceof Error ? error.message : String(error),
+          });
+          // Don't throw - command status update should still succeed
+        }
       }
     }
 

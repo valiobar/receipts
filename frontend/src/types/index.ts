@@ -19,6 +19,7 @@ export type {
 export type {
   Device,
   DeviceCommand,
+  DeviceStatus,
 } from './device.types';
 
 export type {

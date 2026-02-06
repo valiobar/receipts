@@ -206,7 +206,7 @@ sequenceDiagram
         Device-->>WS: Pong (implicit)
     end
     
-    Device->>WS: Status message (success/error/noPaper)
+    Device->>WS: Status message (success/error/noPapper)
     WS->>ConnMgr: Process device message
     ConnMgr->>ConnMgr: Update device status
     ConnMgr->>Client: Broadcast status update
@@ -502,7 +502,7 @@ class ConnectionManager {
 
 **Key Features**:
 - **Singleton Pattern**: Single instance exported as `connectionManager`
-- **Device Status Tracking**: Tracks online/offline, lastSeen, and processing status (ready/processing/error/noPaper)
+- **Device Status Tracking**: Tracks online/offline, lastSeen, and processing status (ready/processing/error/noPapper)
 - **Ping/Pong Keepalive**: Automatic ping every 15 seconds per device
 - **Connection Cleanup**: Automatic cleanup of ping intervals and status on disconnect
 - **Broadcast Support**: Can broadcast to all clients or target specific client
@@ -530,7 +530,7 @@ class ConnectionManager {
 - Validate device ID against database
 - Register device connection with ConnectionManager
 - Process pending commands on connect
-- Handle device messages (status responses, noPaper alerts)
+- Handle device messages (status responses, noPapper alerts)
 - Update device status in database
 - Handle device disconnection
 
@@ -1102,7 +1102,7 @@ The system uses a custom JSON-based protocol over WebSocket for device communica
 **No Paper Status**:
 ```json
 {
-  "Status": "noPaper"
+  "Status": "noPapper"
 }
 ```
 
@@ -1132,14 +1132,14 @@ interface PingMessage {
 interface DeviceMessage {
   MessageId?: number;     // Numeric command ID (not ObjectId string)
   Action?: 'ping';
-  Status?: 'success' | 'error' | 'noPaper';
+  Status?: 'success' | 'error' | 'noPapper';
   MsgData?: string;
   MsgStatus?: string;
 }
 
 // Frontend Client Messages
 // Note: Receipt events are sent directly without a type wrapper (matches receipt)
-// Other messages (connect, noPaper, info) include a type field
+// Other messages (connect, noPapper, info) include a type field
 type ClientMessage = 
   | {
       MessageId: string;
@@ -1154,7 +1154,7 @@ type ClientMessage =
       message: string;
     }
   | {
-      type: 'connect' | 'noPaper';
+      type: 'connect' | 'noPapper';
       location: Location;
     };
 ```
@@ -2011,9 +2011,9 @@ ws.on('message', (message: string) => {
     
     // Process next command
     commandService.processPendingCommands(deviceId);
-  } else if (msg.Status === 'noPaper') {
+  } else if (msg.Status === 'noPapper') {
     connectionManager.broadcastToClients({
-      type: 'noPaper',
+      type: 'noPapper',
       deviceId: deviceId
     });
   }
@@ -2105,7 +2105,7 @@ function useWebSocket() {
       }));
     });
     
-    socket.on('noPaper', (data) => {
+    socket.on('noPapper', (data) => {
       toast.warning(`Device ${data.deviceId} has no paper`);
     });
     

@@ -1,6 +1,7 @@
 import { JSX } from 'react';
 import type { Device } from '@/types';
 import { formatDate, getRelativeTime } from '@/utils/date';
+import { DeviceStatus } from './DeviceStatus';
 
 interface DeviceCardProps {
   device: Device;
@@ -63,63 +64,12 @@ export const DeviceCard = ({ device, onClick, isSelected = false }: DeviceCardPr
             {device.name || 'Unnamed Device'}
           </h3>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">PIN: {device.devicePin || 'N/A'}</p>
+          <DeviceStatus deviceId={device.deviceId} />
         </div>
-        <div className="flex flex-col items-end gap-2">
-          <span
-            className={`
-              px-3 py-1 rounded-full text-xs font-medium border
-              ${getStatusBadgeClasses(isOnline)}
-            `.trim()}
-          >
-            {isOnline ? 'Online' : 'Offline'}
-          </span>
-          <div className="flex items-center gap-1.5">
-            <span
-              className={`
-                w-2 h-2 rounded-full
-                ${getStatusDotClasses(isOnline)}
-              `.trim()}
-              aria-label={isOnline ? 'Device is online' : 'Device is offline'}
-            />
-            <span className="text-xs text-gray-500 dark:text-gray-400">
-              {isOnline ? 'Active' : 'Inactive'}
-            </span>
-          </div>
-        </div>
+     
       </div>
 
-      {/* Location */}
-      <div className="mb-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Location</p>
-        <p className="text-sm font-medium text-gray-900 dark:text-white">{device.location || 'N/A'}</p>
-      </div>
-
-      {/* Details grid */}
-      <div className="mb-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Status</p>
-        <p className="text-sm font-medium text-gray-900 dark:text-white">
-          {device.status ? 'Enabled' : 'Disabled'}
-        </p>
-      </div>
-
-      {/* Last seen timestamp */}
-      {device.lastSeen && (
-        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-          <p className="text-xs text-gray-500 dark:text-gray-400">
-            Last seen: {getRelativeTime(device.lastSeen)}
-          </p>
-          <p className="text-xs text-gray-400 dark:text-gray-500 mt-1">
-            {formatDate(device.lastSeen, {
-              year: 'numeric',
-              month: 'short',
-              day: 'numeric',
-              hour: '2-digit',
-              minute: '2-digit',
-            })}
-          </p>
-        </div>
-      )}
-
+ 
       {/* Metadata (if available) */}
       {device.metadata && (device.metadata.firmwareVersion || device.metadata.model) && (
         <div className="pt-4 border-t border-gray-200 dark:border-gray-700 mt-4">

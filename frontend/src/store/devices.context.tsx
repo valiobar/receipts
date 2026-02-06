@@ -1,6 +1,13 @@
 import { createContext, useContext, useReducer, useCallback, ReactNode } from 'react';
 import { apiService } from '@/services/api.service';
-import type { Device, DeviceCommand } from '@/types';
+import type { Device, DeviceCommand, DeviceStatus } from '@/types';
+
+/**
+ * Raw device from server API (status is boolean)
+ */
+interface RawDeviceFromServer extends Omit<Device, 'status'> {
+  status: boolean | DeviceStatus;
+}
 
 /**
  * Devices state interface
@@ -18,8 +25,9 @@ interface DevicesState {
  */
 type DevicesAction =
   | { type: 'SET_LOADING'; payload: boolean }
-  | { type: 'SET_DEVICES'; payload: Device[] }
+  | { type: 'SET_DEVICES'; payload: RawDeviceFromServer[] }
   | { type: 'UPDATE_DEVICE_STATUS'; payload: { deviceId: string; isOnline: boolean } }
+  | { type: 'UPDATE_DEVICE_STATUS_FIELD'; payload: { location: string; status: DeviceStatus } }
   | { type: 'SELECT_DEVICE'; payload: string | null }
   | { type: 'SET_ERROR'; payload: string | null };
 
@@ -30,6 +38,7 @@ interface DevicesContextValue extends DevicesState {
   dispatch: React.Dispatch<DevicesAction>;
   fetchDevices: () => Promise<void>;
   updateDeviceStatus: (deviceId: string, isOnline: boolean) => void;
+  updateDeviceStatusField: (location: string, status: DeviceStatus) => void;
   selectDevice: (deviceId: string | null) => void;
   sendCommand: (deviceId: string, command: DeviceCommand) => Promise<void>;
 }
@@ -57,16 +66,28 @@ const devicesReducer = (state: DevicesState, action: DevicesAction): DevicesStat
         error: null,
       };
     case 'SET_DEVICES':
-      // Extract online device IDs from devices array
+      // Extract online device IDs from devices array and transform status
       const onlineDevices = new Set<string>();
-      action.payload.forEach((device) => {
+      const transformedDevices: Device[] = action.payload.map((device) => {
         if (device.online) {
           onlineDevices.add(device.deviceId);
         }
+        
+        // Transform server's boolean status to DeviceStatus
+        // If status is boolean true, set to 'ready'; if false, set to 'offline'
+        const status: DeviceStatus = typeof device.status === 'boolean' 
+          ? (device.status ? 'ready' : 'offline')
+          : device.status;
+        
+        return {
+          ...device,
+          status,
+        } as Device;
       });
+      
       return {
         ...state,
-        devices: action.payload,
+        devices: transformedDevices,
         onlineDevices,
         isLoading: false,
         error: null,
@@ -90,6 +111,18 @@ const devicesReducer = (state: DevicesState, action: DevicesAction): DevicesStat
         ...state,
         devices,
         onlineDevices,
+      };
+    }
+    case 'UPDATE_DEVICE_STATUS_FIELD': {
+      const { location, status } = action.payload;   
+      // Update device status field in devices array
+      const devices = state.devices.map((device) =>
+        device.location === location ? { ...device, status } : device
+      );
+
+      return {
+        ...state,
+        devices,
       };
     }
     case 'SELECT_DEVICE':
@@ -130,6 +163,7 @@ export const DevicesProvider = ({ children }: DevicesProviderProps): JSX.Element
     dispatch({ type: 'SET_LOADING', payload: true });
     try {
       const response = await apiService.getDevices();
+      console.log('response', response.data);
       if (response.success && response.data) {
         dispatch({ type: 'SET_DEVICES', payload: response.data.devices });
       } else {
@@ -154,19 +188,23 @@ export const DevicesProvider = ({ children }: DevicesProviderProps): JSX.Element
   }, []);
 
   /**
+   * Update device status field (ready, processing, error, noPapper)
+   */
+  const updateDeviceStatusField = useCallback((location: string, status: DeviceStatus): void => {
+    dispatch({ type: 'UPDATE_DEVICE_STATUS_FIELD', payload: { location, status } });
+  }, []);
+
+  /**
    * Select device for details view
    */
   const selectDevice = useCallback((deviceId: string | null): void => {
     dispatch({ type: 'SELECT_DEVICE', payload: deviceId });
   }, []);
 
-  /**
-   * Send command to device
-   */
   const sendCommand = useCallback(
-    async (deviceId: string, command: DeviceCommand): Promise<void> => {
+    async (location: string, command: DeviceCommand): Promise<void> => {
       try {
-        const response = await apiService.sendDeviceCommand(deviceId, command);
+        const response = await apiService.sendDeviceCommand(location, command);
         if (!response.success) {
           throw new Error(response.error?.message || 'Command failed');
         }
@@ -182,6 +220,7 @@ export const DevicesProvider = ({ children }: DevicesProviderProps): JSX.Element
     dispatch,
     fetchDevices,
     updateDeviceStatus,
+    updateDeviceStatusField,
     selectDevice,
     sendCommand,
   };

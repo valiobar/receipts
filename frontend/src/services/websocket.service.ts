@@ -144,6 +144,8 @@ class WebSocketService {
     // Route message based on type
     // Receipt events: Check for action === 'print' (no type wrapper)
     if ('action' in message && message.action === 'print') {
+
+      
       this.handleReceiptEvent(message as ReceiptEvent);
       return;
     }
@@ -154,8 +156,8 @@ class WebSocketService {
       return;
     }
 
-    // No paper events: Check for type === 'noPaper'
-    if ('type' in message && message.type === 'noPaper') {
+    // No paper events: Check for type === 'noPapper'
+    if ('type' in message && message.type === 'noPapper') {
       this.handleNoPaperEvent(message as NoPaperEvent);
       return;
     }

@@ -134,16 +134,6 @@ class EventService extends EventEmitter {
           device: data.device,
           user: data.user,
         });
-
-        // Broadcast receipt event to clients (matches protocol - no type wrapper)
-        connectionManager.broadcastToClients({
-          MessageId: command._id.toString(),
-          UnicSaleNum: command.clubReceiptN?.toString() || '0',
-          action: 'print',
-          price: command.amount || '0',
-          user: command.userNumber || '',
-          location: command.location || '',
-        });
       } catch (error: unknown) {
         const errorMessage = error instanceof Error ? error.message : 'Unknown error';
         if (errorMessage === 'Duplicate receipt for same user') {

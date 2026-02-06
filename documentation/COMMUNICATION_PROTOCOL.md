@@ -583,7 +583,7 @@ sequenceDiagram
 **Message Format:**
 ```json
 {
-  "Status": "noPaper"
+  "Status": "noPapper"
 }
 ```
 
@@ -591,7 +591,7 @@ sequenceDiagram
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `Status` | string | Yes | Must be `"noPaper"` |
+| `Status` | string | Yes | Must be `"noPapper"` |
 
 **Server Processing:**
 1. Mark device as "no paper" state
@@ -601,7 +601,7 @@ sequenceDiagram
 **Example:**
 ```json
 {
-  "Status": "noPaper"
+  "Status": "noPapper"
 }
 ```
 
@@ -692,7 +692,7 @@ function handleDeviceMessage(ws: WebSocket, message: string, deviceId: string) {
   
   // Handle status responses
   if (msg.Status) {
-    if (msg.Status === 'noPaper') {
+    if (msg.Status === 'noPapper') {
       handleNoPaper(deviceId);
       ws.closed = false;
       return;
@@ -893,7 +893,7 @@ wss://server:port/client  (SSL)
 **Message Format:**
 ```json
 {
-  "type": "noPaper",
+  "type": "noPapper",
   "location": {
     "name": "Bulgaria",
     "device": "123",
@@ -906,7 +906,7 @@ wss://server:port/client  (SSL)
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| `type` | string | Yes | Must be `"noPaper"` |
+| `type` | string | Yes | Must be `"noPapper"` |
 | `location` | object | Yes | Device location info |
 | `location.name` | string | Yes | Location name |
 | `location.device` | string | Yes | Device ID |
@@ -915,7 +915,7 @@ wss://server:port/client  (SSL)
 **Example:**
 ```json
 {
-  "type": "noPaper",
+  "type": "noPapper",
   "location": {
     "name": "Bulgaria",
     "device": "123",
@@ -1067,7 +1067,7 @@ Clients can send messages to server (future feature):
     },
     "Status": {
       "type": "string",
-      "enum": ["success", "error", "noPaper", "spad-naprejenie"]
+      "enum": ["success", "error", "noPapper", "spad-naprejenie"]
     },
     "MsgData": {
       "type": "string"
@@ -1091,7 +1091,7 @@ Clients can send messages to server (future feature):
   "properties": {
     "type": {
       "type": "string",
-      "enum": ["info", "receipt", "connect", "noPaper", "spad-naprejenie"]
+      "enum": ["info", "receipt", "connect", "noPapper", "spad-naprejenie"]
     },
     "message": {
       "type": "string"
@@ -1634,12 +1634,12 @@ stateDiagram-v2
 | `ping` | Server → Device | Keep-alive |
 | `success` | Device → Server | Command success |
 | `error` | Device → Server | Command error |
-| `noPaper` | Device → Server | Paper out |
+| `noPapper` | Device → Server | Paper out |
 | `spad-naprejenie` | Device → Server | Voltage drop event |
 | `info` | Server → Client | Connection info |
 | `receipt` | Server → Client | Receipt event |
 | `connect` | Server → Client | Device status |
-| `noPaper` | Server → Client | No paper alert |
+| `noPapper` | Server → Client | No paper alert |
 | `spad-naprejenie` | Server → Client | Voltage drop alert |
 
 ### Field Type Reference

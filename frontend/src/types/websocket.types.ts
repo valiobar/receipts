@@ -20,7 +20,7 @@ export interface DeviceStatusEvent {
 
 // No paper event
 export interface NoPaperEvent {
-  type: 'noPaper';
+  type: 'noPapper';
   location: {
     name: string;
     device: string;

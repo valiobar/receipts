@@ -6,7 +6,7 @@ import { Device } from '../models';
 export interface DeviceStatus {
   online: boolean;
   lastSeen: Date;
-  status: 'ready' | 'processing' | 'error' | 'noPaper';
+  status: 'ready' | 'processing' | 'error' | 'noPapper';
   socketId?: string;
 }
 
@@ -21,7 +21,7 @@ export interface ReceiptBroadcastMessage {
 }
 
 export interface DeviceStatusBroadcastMessage {
-  type: 'connect' | 'noPaper' | 'spad-naprejenie';
+  type: 'connect' | 'noPapper' | 'spad-naprejenie';
   location: {
     name: string;
     device: string;

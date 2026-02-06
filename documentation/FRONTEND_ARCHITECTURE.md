@@ -545,7 +545,7 @@ class WebSocketService {
       this.handleReceiptEvent(message as ReceiptEvent);
     } else if ('type' in message && message.type === 'connect') {
       this.handleDeviceStatusEvent(message as DeviceStatusEvent);
-    } else if ('type' in message && message.type === 'noPaper') {
+    } else if ('type' in message && message.type === 'noPapper') {
       this.handleNoPaperEvent(message as NoPaperEvent);
     } else if ('type' in message && message.type === 'spad-naprejenie') {
       this.handleSpadNaprejenieEvent(message as SpadNaprejenieEvent);
@@ -1105,7 +1105,7 @@ export const ProtectedRoute = ({ children }: ProtectedRouteProps): JSX.Element =
 **No Paper Events:**
 ```typescript
 {
-  type: "noPaper",
+  type: "noPapper",
   location: {
     name: "Bulgaria",
     device: "123",
@@ -1395,7 +1395,7 @@ export interface DeviceStatusEvent {
 }
 
 export interface NoPaperEvent {
-  type: 'noPaper';
+  type: 'noPapper';
   location: {
     name: string;
     device: string;

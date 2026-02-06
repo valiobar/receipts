@@ -10,7 +10,7 @@ import logger from '../config/winston';
 interface DeviceMessage {
   MessageId?: number;
   Action?: 'ping' | 'spad-naprejenie';
-  Status?: 'success' | 'error' | 'noPaper' | 'spad-naprejenie';
+  Status?: 'success' | 'error' | 'noPapper' | 'spad-naprejenie';
   MsgData?: string;
   MsgStatus?: string;
 }
@@ -181,14 +181,14 @@ async function handleDeviceMessage(
     });
     return;
   }
-  
+  console.log('message.Status', message.Status);
   // Handle status responses
   if (message.Status) {
-    if (message.Status === 'noPaper') {
+    if (message.Status === 'noPapper') {
       // Broadcast no paper alert to clients
       await handleNoPaper(deviceId);
       connectionManager.updateDeviceStatus(deviceId, {
-        status: 'noPaper',
+        status: 'noPapper',
         lastSeen: new Date(),
       });
       return;
@@ -237,10 +237,10 @@ async function handleDeviceMessage(
 async function handleNoPaper(deviceId: string): Promise<void> {
   try {
     const device = await Device.findOne({ deviceId }).exec();
-    
+console.log('handleNoPaper', device);
     if (device) {
       connectionManager.broadcastToClients({
-        type: 'noPaper',
+        type: 'noPapper',
         location: {
           name: device.name || device.location || deviceId,
           device: deviceId,

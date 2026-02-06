@@ -1,5 +1,5 @@
 import type { Receipt } from './receipt.types';
-import type { Device } from './device.types';
+import type { Device, DeviceStatus } from './device.types';
 
 export interface ApiResponse<T> {
   success: boolean;
@@ -50,7 +50,7 @@ export interface DeviceStatusResponse {
   deviceId: string;
   online: boolean;
   lastSeen?: string;
-  status: string;
+  status: DeviceStatus;
   pendingCommands: number;
   lastCommand?: {
     id: number;

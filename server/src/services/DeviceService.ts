@@ -2,9 +2,10 @@ import { Device, IDeviceDocument } from '../models';
 import logger from '../config/winston';
 
 // Device with online status
-export interface DeviceWithStatus extends IDeviceDocument {
+export interface DeviceWithStatus extends Omit<IDeviceDocument, 'status'> {
   online: boolean;
   lastSeen?: Date;
+  status: boolean | 'ready' | 'processing' | 'error' | 'noPapper'; // Can be boolean from DB or DeviceStatus from ConnectionManager
 }
 
 // Device status information
@@ -12,7 +13,7 @@ export interface DeviceStatusInfo {
   deviceId: string;
   online: boolean;
   lastSeen?: Date;
-  status: 'ready' | 'processing' | 'error' | 'noPaper';
+  status: 'ready' | 'processing' | 'error' | 'noPapper';
   pendingCommands: number;
   lastCommand?: {
     id: string;
@@ -67,6 +68,9 @@ class DeviceService {
         ...device.toObject(),
         online: isOnline,
         lastSeen: deviceStatus?.lastSeen || device.lastSeen,
+        // Override status with real-time status from ConnectionManager if available
+        // Otherwise keep the database boolean status (will be transformed on frontend)
+        status: deviceStatus?.status !== undefined ? deviceStatus.status : device.status,
       } as DeviceWithStatus;
     });
 
@@ -125,7 +129,7 @@ class DeviceService {
 
     // Get device status from connection manager
     let lastSeen: Date | undefined;
-    let status: 'ready' | 'processing' | 'error' | 'noPaper' = 'ready';
+    let status: 'ready' | 'processing' | 'error' | 'noPapper' = 'ready';
     
     if (this.connectionManager) {
       const deviceStatus = this.connectionManager.getDeviceStatus(deviceId);
