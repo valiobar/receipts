@@ -470,7 +470,7 @@ Authorization: Bearer {token}
 
 ### GET /api/receipts/export
 
-Export receipts to Excel file.
+Export receipts to Excel file. **Streams response directly** (no temp files); suitable for large datasets. Export columns match the Receipts Table: Timestamp, Device, Amount, Customer Number, User Name, Remain Vouchers, Initial Vouchers, Used Vouchers, Subscription Start.
 
 **Authentication:** Required (Bearer token)
 
@@ -481,6 +481,7 @@ Export receipts to Excel file.
 | `startDate` | string (ISO 8601) | Yes | Start date |
 | `endDate` | string (ISO 8601) | Yes | End date |
 | `deviceId` | string | No | Filter by device ID |
+| `customerNumber` | string | No | Filter by customer number (partial match) |
 | `format` | string | No | Export format (`xlsx`, `csv`, default: `xlsx`) |
 
 **Request Headers:**
@@ -493,23 +494,12 @@ Authorization: Bearer {token}
 Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet
 Content-Disposition: attachment; filename="report-15-01-2024.xlsx"
 
-[Excel file binary data]
-```
-
-**Response: 200 OK (JSON with filename)**
-```json
-{
-  "success": true,
-  "data": {
-    "filename": "report-15-01-2024.xlsx",
-    "downloadUrl": "/reports/report-15-01-2024.xlsx"
-  }
-}
+[Excel file binary data - streamed]
 ```
 
 **cURL Example:**
 ```bash
-curl -X GET "https://api.fit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31" \
+curl -X GET "https://api.fit.bg/api/receipts/export?startDate=2024-01-01&endDate=2024-01-31&customerNumber=12345" \
   -H "Authorization: Bearer {token}" \
   -o report.xlsx
 ```

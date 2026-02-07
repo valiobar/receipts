@@ -162,8 +162,8 @@ export const Dashboard = (): JSX.Element => {
           </div>
         ) : (
           <div className="grid grid-cols-5 gap-6">
-            {receipts.slice(0, 5).map((receipt) => (
-              <ReceiptCard key={receipt._id} receipt={receipt} />
+            {receipts.slice(0, 5).map((receipt, index) => (
+              <ReceiptCard key={`${receipt._id}-${index}`} receipt={receipt} />
             ))}
           </div>
         )}

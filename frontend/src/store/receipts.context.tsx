@@ -37,6 +37,7 @@ interface ReceiptsContextValue extends ReceiptsState {
     startDate: string;
     endDate: string;
     deviceId?: string;
+    customerNumber?: string;
     format?: 'xlsx' | 'csv';
   }) => Promise<void>;
 }
@@ -76,12 +77,17 @@ const receiptsReducer = (state: ReceiptsState, action: ReceiptsAction): Receipts
         ...state,
         filters: action.payload,
       };
-    case 'ADD_RECEIPT':
-      // Add receipt to the beginning of the list
+    case 'ADD_RECEIPT': {
+      // Avoid duplicate: do not add if same id already at the start (e.g. double event or effect re-run)
+      const existingIds = new Set(state.receipts.map((r) => r._id));
+      if (existingIds.has(action.payload._id)) {
+        return state;
+      }
       return {
         ...state,
         receipts: [action.payload, ...state.receipts],
       };
+    }
     case 'SET_ERROR':
       return {
         ...state,
@@ -177,6 +183,7 @@ export const ReceiptsProvider = ({ children }: ReceiptsProviderProps): JSX.Eleme
       startDate: string;
       endDate: string;
       deviceId?: string;
+      customerNumber?: string;
       format?: 'xlsx' | 'csv';
     }): Promise<void> => {
       try {
@@ -188,7 +195,7 @@ export const ReceiptsProvider = ({ children }: ReceiptsProviderProps): JSX.Eleme
         link.download = `receipts-${new Date().toISOString().split('T')[0]}.${params.format || 'xlsx'}`;
         document.body.appendChild(link);
         link.click();
-        document.body.removeChild(link);
+        link.remove();
         window.URL.revokeObjectURL(url);
       } catch (error) {
         dispatch({

@@ -91,7 +91,7 @@ export const DevicesStatusList = (): JSX.Element => {
         </div>
       ) : (
         <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4">
-          {devices.slice(0, 12).map((device) => {
+          {devices.slice(0, 12).map((device, index) => {
             const isOnline = device.online ?? false;
             const statusText = device.status ?? 'offline';
             const isNoPaper = statusText === 'noPapper';
@@ -102,7 +102,7 @@ export const DevicesStatusList = (): JSX.Element => {
 
             return (
               <div
-                key={device._id}
+                key={`${device._id}-${index}`}
                 className={`
                   rounded-lg border p-4 transition-all duration-200
                   ${statusIcon.bgColor} ${statusIcon.borderColor}

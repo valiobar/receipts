@@ -2,9 +2,6 @@ import { Request, Response } from 'express';
 import { receiptService } from '../services/ReceiptService';
 import { sendSuccess, sendError } from '../utils/api-response';
 import logger from '../config/winston';
-import { writeFile, mkdtemp } from 'fs/promises';
-import { join } from 'path';
-import { tmpdir } from 'os';
 
 /**
  * GET /api/receipts
@@ -131,16 +128,16 @@ export const getReceipt = async (req: Request, res: Response): Promise<void> => 
 
 /**
  * GET /api/receipts/export
- * Export receipts to Excel file
+ * Export receipts to Excel file (streaming)
  */
 export const exportReceipts = async (req: Request, res: Response): Promise<void> => {
   try {
     const startDate = req.query.startDate as string;
     const endDate = req.query.endDate as string;
     const deviceId = req.query.deviceId as string | undefined;
+    const customerNumber = req.query.customerNumber as string | undefined;
     const format = (req.query.format as 'xlsx' | 'csv') || 'xlsx';
-    
-    // Validate required parameters
+
     if (!startDate || !endDate) {
       sendError(
         req,
@@ -155,47 +152,41 @@ export const exportReceipts = async (req: Request, res: Response): Promise<void>
       );
       return;
     }
-    
-    // Export receipts to buffer
-    const buffer = await receiptService.exportReceiptsToExcel({
+
+    const stream = await receiptService.exportReceiptsToExcel({
       startDate: new Date(startDate),
       endDate: new Date(endDate),
       deviceId,
+      customerNumber,
     });
-    
-    // Generate filename
+
     const filename = `report-${new Date().toISOString().split('T')[0]}.${format}`;
-    
-    // Create temporary directory and file
-    const tempDir = await mkdtemp(join(tmpdir(), 'receipt-export-'));
-    const filePath = join(tempDir, filename);
-    
-    // Write buffer to file
-    await writeFile(filePath, buffer);
-    
-    // Set response headers for file download
-    res.setHeader('Content-Type', format === 'xlsx' 
-      ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
-      : 'text/csv'
+
+    res.setHeader(
+      'Content-Type',
+      format === 'xlsx'
+        ? 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        : 'text/csv'
     );
     res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-    
-    // Send file
-    res.sendFile(filePath, (err) => {
-      if (err) {
-        logger.error('Export receipts file send error', {
-          error: err.message,
-          filePath,
-        });
+
+    stream.on('error', (err) => {
+      logger.error('Export receipts stream error', {
+        error: err.message,
+        filename,
+      });
+      if (res.headersSent) {
+        res.end();
+      } else {
+        sendError(req, res, 'INTERNAL_ERROR', 'Export failed', 500);
       }
-      // Note: In production, you might want to clean up the temp file after sending
-      // For now, the OS will clean up temp files periodically
     });
+
+    stream.pipe(res);
   } catch (error) {
     logger.error('Export receipts error', {
       error: error instanceof Error ? error.message : String(error),
     });
-    
     sendError(req, res, 'INTERNAL_ERROR', 'Internal server error', 500);
   }
 };

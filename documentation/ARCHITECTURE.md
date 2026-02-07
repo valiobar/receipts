@@ -1210,9 +1210,9 @@ Headers: { Authorization: "Bearer <token>" }
 Response: { receipt: Receipt }
 
 GET    /api/receipts/export
-Query: ?startDate=2024-01-01&endDate=2024-01-31
+Query: ?startDate=...&endDate=...&deviceId?&customerNumber?&format?
 Headers: { Authorization: "Bearer <token>" }
-Response: Excel file download
+Response: Excel file download (streamed; no temp files)
 ```
 
 #### Devices

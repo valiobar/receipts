@@ -1,10 +1,57 @@
-import { Receipt, ReceiptStatus, IReceiptDocument, CommandType, ICommandDocument } from '../models';
+import { PassThrough } from 'node:stream';
+import { Receipt, ReceiptStatus, IReceiptDocument, CommandType, ICommandDocument, Device } from '../models';
 import { BRPUser } from '../models/BRPUser';
 import logger from '../config/winston';
 import ExcelJS from 'exceljs';
 import { brpUserService } from './BRPUserService';
 import type { BRPSubscription } from '../types/brp-api';
 import type { Types } from 'mongoose';
+
+/** Receipt row for export - matches Receipts Table columns */
+interface ExportReceiptRow {
+  timestamp: string;
+  device: string;
+  amount: string;
+  customerNumber: string;
+  userName: string;
+  remainVouchers: string;
+  initialVouchers: string;
+  usedVouchers: string;
+  subscriptionStart: string;
+}
+
+const formatAmountForExport = (amount: string): string => {
+  const num = Number.parseFloat(amount);
+  if (Number.isNaN(num)) return amount;
+  return new Intl.NumberFormat('en-US', {
+    style: 'currency',
+    currency: 'EUR',
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).format(num);
+};
+
+const formatIntegerForExport = (value: string | number): string => {
+  const num = typeof value === 'number' ? value : Number.parseFloat(String(value));
+  if (Number.isNaN(num)) return 'N/A';
+  return Math.floor(num).toString();
+};
+
+const formatTimestampForExport = (date: Date): string =>
+  new Intl.DateTimeFormat('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(date);
+
+const formatSubscriptionDateForExport = (date: Date): string =>
+  new Intl.DateTimeFormat('en-US', {
+    month: '2-digit',
+    day: '2-digit',
+    year: 'numeric',
+  }).format(date);
 
 // Receipt query filters
 export interface ReceiptFilters {
@@ -13,7 +60,7 @@ export interface ReceiptFilters {
   endDate?: Date;
   customerNumber?: string;
   status?: ReceiptStatus;
-  limit?: number;
+  limit?: number
   offset?: number;
   sortBy?: string;
   sortOrder?: 'asc' | 'desc';
@@ -23,7 +70,6 @@ export interface ReceiptFilters {
 export interface ReceiptQueryResult {
   receipts: IReceiptDocument[];
   pagination: {
-    total: number;
     limit: number;
     offset: number;
     hasMore: boolean;
@@ -210,17 +256,24 @@ class ReceiptService {
   }
 
   /**
-   * Export receipts to Excel
+   * Export receipts to Excel (streaming) - columns match Receipts Table
    */
   async exportReceiptsToExcel(filters: {
     startDate: Date;
     endDate: Date;
     deviceId?: string;
-  }): Promise<Buffer> {
-    const query: any = {
+    customerNumber?: string;
+  }): Promise<NodeJS.ReadableStream> {
+    const outputStream = new PassThrough();
+
+    // Build base query (date range)
+    const endOfDay = new Date(filters.endDate);
+    endOfDay.setHours(23, 59, 59, 999);
+
+    const query: Record<string, unknown> = {
       ts: {
         $gte: filters.startDate,
-        $lte: new Date(new Date(filters.endDate).setHours(23, 59, 59, 999)),
+        $lte: endOfDay,
       },
     };
 
@@ -228,59 +281,159 @@ class ReceiptService {
       query.device = filters.deviceId;
     }
 
-    const receipts = await Receipt.find(query)
-      .sort({ ts: -1 })
-      .exec();
+    // Customer number filter (same logic as queryReceipts)
+    if (filters.customerNumber) {
+      const brpUsers = await BRPUser.find({
+        customerNumber: { $regex: filters.customerNumber, $options: 'i' },
+      })
+        .select('_id')
+        .exec();
 
-    // Create workbook
-    const workbook = new ExcelJS.Workbook();
+      const brpUserIds: Types.ObjectId[] = brpUsers.map((user) => user._id);
+      query.brpUserId = brpUserIds.length > 0 ? { $in: brpUserIds } : { $in: [] };
+    }
+
+    // Load device names for lookup (deviceId -> name)
+    const devices = await Device.find().select('deviceId name').lean().exec();
+    const deviceNameMap = new Map<string, string>();
+    for (const d of devices) {
+      deviceNameMap.set(d.deviceId, d.name || d.deviceId);
+    }
+
+    // Create streaming workbook writer
+    const workbook = new ExcelJS.stream.xlsx.WorkbookWriter({
+      stream: outputStream,
+      useStyles: true,
+    });
+
+    // Columns match Receipts Table exactly
     const worksheet = workbook.addWorksheet('Receipts');
-
-    // Define columns
     worksheet.columns = [
-      { header: 'ID', key: 'id', width: 25 },
-      { header: 'Device', key: 'device', width: 10 },
-      { header: 'Amount', key: 'amount', width: 12 },
-      { header: 'Membership Fee', key: 'membershipFee', width: 15 },
-      { header: 'User Number', key: 'userNumber', width: 15 },
-      { header: 'Location', key: 'location', width: 20 },
-      { header: 'IP', key: 'ip', width: 15 },
-      { header: 'Status', key: 'status', width: 12 },
-      { header: 'Timestamp', key: 'timestamp', width: 20 },
+      { header: 'Timestamp', key: 'timestamp', width: 18 },
+      { header: 'Device', key: 'device', width: 20 },
+      { header: 'Amount', key: 'amount', width: 14 },
+      { header: 'Customer Number', key: 'customerNumber', width: 18 },
+      { header: 'User Name', key: 'userName', width: 14 },
+      { header: 'Remain Vouchers', key: 'remainVouchers', width: 16 },
+      { header: 'Initial Vouchers', key: 'initialVouchers', width: 16 },
+      { header: 'Used Vouchers', key: 'usedVouchers', width: 14 },
+      { header: 'Subscription Start', key: 'subscriptionStart', width: 18 },
     ];
 
     // Style header row
-    worksheet.getRow(1).font = { bold: true };
-    worksheet.getRow(1).fill = {
+    const headerRow = worksheet.getRow(1);
+    headerRow.font = { bold: true };
+    headerRow.fill = {
       type: 'pattern',
       pattern: 'solid',
       fgColor: { argb: 'FFE0E0E0' },
     };
+    headerRow.commit();
 
-    // Add data rows
-    receipts.forEach((receipt) => {
-      worksheet.addRow({
-        id: receipt._id.toString(),
-        device: receipt.device,
-        amount: receipt.amount,
-        membershipFee: receipt.MembershipFee,
-        userNumber: receipt.userNumber,
-        location: receipt.location,
-        ip: receipt.ip,
-        status: receipt.Status,
-        timestamp: receipt.ts.toISOString(),
-      });
-    });
+    // Use aggregation with $lookup to get user data, then cursor for streaming
+    const cursor = Receipt.aggregate([
+      { $match: query },
+      { $sort: { ts: -1 } },
+      {
+        $lookup: {
+          from: 'brpusers',
+          localField: 'brpUserId',
+          foreignField: '_id',
+          as: 'brpUser',
+        },
+      },
+      {
+        $unwind: {
+          path: '$brpUser',
+          preserveNullAndEmptyArrays: true,
+        },
+      },
+    ])
+      .cursor();
 
-    // Generate buffer
-    const buffer = await workbook.xlsx.writeBuffer();
-    
-    logger.info('Receipts exported to Excel', {
-      count: receipts.length,
-      filters,
-    });
+    const processCursor = async (): Promise<void> => {
+      try {
+        for await (const doc of cursor) {
+          const row = this.buildExportRow(doc, deviceNameMap);
+          worksheet.addRow(row).commit();
+        }
 
-    return Buffer.from(buffer);
+        worksheet.commit();
+        await workbook.commit();
+        outputStream.end();
+      } catch (error) {
+        logger.error('Export receipts streaming error', {
+          error: error instanceof Error ? error.message : String(error),
+          filters,
+        });
+        outputStream.destroy(error instanceof Error ? error : new Error(String(error)));
+      }
+    };
+
+    processCursor();
+    return outputStream;
+  }
+
+  /**
+   * Build export row - same data and formatting as Receipts Table
+   */
+  private buildExportRow(
+    doc: {
+      device: string;
+      amount: string;
+      MembershipFee?: string;
+      userNumber?: string;
+      ts: Date;
+      brpUser?: {
+        firstName?: string;
+        lastName?: string;
+        customerNumber?: string;
+        amount?: number;
+        initialAmount?: number;
+        subscriptionStartDate?: Date;
+      } | null;
+    },
+    deviceNameMap: Map<string, string>
+  ): ExportReceiptRow {
+    const brpUser = doc.brpUser;
+    const deviceName = deviceNameMap.get(doc.device) ?? doc.device;
+
+    const userName =
+      brpUser?.firstName && brpUser?.lastName
+        ? `${brpUser.firstName.charAt(0).toUpperCase()}.${brpUser.lastName}`
+        : (doc.userNumber ?? 'N/A');
+
+    const remainVouchers =
+      brpUser?.amount !== undefined
+        ? formatIntegerForExport(brpUser.amount)
+        : formatIntegerForExport(doc.MembershipFee ?? '0');
+
+    const initialVouchers =
+      brpUser?.initialAmount !== undefined
+        ? formatIntegerForExport(brpUser.initialAmount)
+        : 'N/A';
+
+    const usedVouchers =
+      brpUser?.initialAmount !== undefined && brpUser?.amount !== undefined
+        ? formatIntegerForExport(brpUser.initialAmount - brpUser.amount)
+        : 'N/A';
+
+    const subscriptionStart =
+      brpUser?.subscriptionStartDate
+        ? formatSubscriptionDateForExport(brpUser.subscriptionStartDate)
+        : 'N/A';
+
+    return {
+      timestamp: formatTimestampForExport(doc.ts),
+      device: deviceName,
+      amount: formatAmountForExport(doc.amount),
+      customerNumber: brpUser?.customerNumber ?? 'N/A',
+      userName,
+      remainVouchers,
+      initialVouchers,
+      usedVouchers,
+      subscriptionStart,
+    };
   }
 
   /**

@@ -24,6 +24,7 @@ export const ReceiptExport = ({ format = 'xlsx', className = '' }: ReceiptExport
           startDate: startDate.toISOString().split('T')[0],
           endDate: endDate.toISOString().split('T')[0],
           deviceId: filters.deviceId,
+          customerNumber: filters.customerNumber,
           format,
         });
       } catch (error) {
@@ -39,6 +40,7 @@ export const ReceiptExport = ({ format = 'xlsx', className = '' }: ReceiptExport
           startDate: filters.startDate,
           endDate: filters.endDate,
           deviceId: filters.deviceId,
+          customerNumber: filters.customerNumber,
           format,
         });
       } catch (error) {

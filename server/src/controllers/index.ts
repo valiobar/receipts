@@ -15,4 +15,3 @@ export * from './system-controller';
 
 // BRP API controllers
 export * from './brp-controller';
-

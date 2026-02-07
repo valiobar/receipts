@@ -5,11 +5,9 @@ import type {
   ApiResponse,
   LoginResponse,
   RefreshTokenResponse,
-  Receipt,
   ReceiptFilters,
   ReceiptsResponse,
   ReceiptResponse,
-  Device,
   DevicesResponse,
   DeviceResponse,
   DeviceStatusResponse,
@@ -61,8 +59,8 @@ class ApiService {
           // Token expired or invalid - clear token and redirect to login
           removeToken();
           // Only redirect if we're not already on the login page
-          if (window.location.pathname !== '/login') {
-            window.location.href = '/login';
+          if (globalThis.location.pathname !== '/login') {
+            globalThis.location.href = '/login';
           }
         }
         return Promise.reject(error);
@@ -116,6 +114,7 @@ class ApiService {
     startDate: string;
     endDate: string;
     deviceId?: string;
+    customerNumber?: string;
     format?: 'xlsx' | 'csv';
   }): Promise<Blob> {
     const response = await this.client.get('/receipts/export', {

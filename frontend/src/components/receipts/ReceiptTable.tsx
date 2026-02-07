@@ -205,9 +205,9 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
     <div className="space-y-6">
       {/* Card View (visible on screens under 1280px) */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 xl:hidden">
-        {receipts.map((receipt) => (
+        {receipts.map((receipt, index) => (
           <div
-            key={receipt._id}
+            key={`${receipt._id}-${index}`}
             onClick={() => handleRowClick(receipt)}
             className={`
               bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4
@@ -368,9 +368,9 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
-              {receipts.map((receipt) => (
+              {receipts.map((receipt, index) => (
                 <tr
-                  key={receipt._id}
+                  key={`${receipt._id}-${index}`}
                   onClick={() => handleRowClick(receipt)}
                   className={`
                     transition-colors duration-150
@@ -483,7 +483,7 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
 
                   return (
                     <button
-                      key={pageNum}
+                      key={`page-${pageNum}-${index}`}
                       onClick={() => handlePageClick(pageNum)}
                       className={`
                         min-w-[2.5rem] px-3 py-1.5 text-sm font-medium rounded-lg

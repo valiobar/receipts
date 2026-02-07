@@ -180,17 +180,13 @@ export interface BRPSubscriptionPayer {
 export interface BRPPaymentOption {
   id: number;
   name: string;
-}
-
-/**
+}/**
  * BRP Price
  */
 export interface BRPPrice {
   amount: number;
   currency: string;
-}
-
-/**
+}/**
  * BRP Customer Subscription
  * Response format from GET /api/ver3/customers/{customer}/subscriptions
  */
@@ -216,11 +212,8 @@ export interface BRPSubscription {
   newPriceDay: string | null;
   newPrice: BRPPrice | null;
   price: BRPPrice;
-}
-
-/**
+}/**
  * BRP Customer Subscriptions Response
  * The API may return the data directly as an array or wrapped in a "data" object
  */
 export type BRPCustomerSubscriptionsResponse = BRPSubscription[] | { data: BRPSubscription[] };
-

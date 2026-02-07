@@ -10,11 +10,11 @@ router.use(authenticate);
 // GET /api/receipts
 router.get('/', listReceipts);
 
+// GET /api/receipts/export (must be before /:id so "export" is not matched as id)
+router.get('/export', exportReceipts);
+
 // GET /api/receipts/:id
 router.get('/:id', getReceipt);
-
-// GET /api/receipts/export
-router.get('/export', exportReceipts);
 
 export default router;
 
