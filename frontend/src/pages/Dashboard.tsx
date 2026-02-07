@@ -3,11 +3,9 @@ import { useReceipts } from '@/hooks/useReceipts';
 import { useDevices } from '@/hooks/useDevices';
 import { apiService } from '@/services/api.service';
 import { ReceiptCard } from '@/components/receipts/ReceiptCard';
-import { Loading } from '@/components/common/Loading';
 import { DevicesStatusList } from '@/components/devices/DevicesStatusList';
 import { OnlineDevicesCard } from '@/components/devices/OnlineDevicesCard';
 import { OfflineDevicesCard } from '@/components/devices/OfflineDevicesCard';
-import { formatDate } from '@/utils/date';
 import type { SystemStatusResponse } from '@/types';
 
 export const Dashboard = (): JSX.Element => {
