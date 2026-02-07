@@ -70,6 +70,7 @@ export interface ReceiptFilters {
 export interface ReceiptQueryResult {
   receipts: IReceiptDocument[];
   pagination: {
+    total: number;
     limit: number;
     offset: number;
     hasMore: boolean;

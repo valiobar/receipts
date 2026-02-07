@@ -237,7 +237,6 @@ async function handleDeviceMessage(
 async function handleNoPaper(deviceId: string): Promise<void> {
   try {
     const device = await Device.findOne({ deviceId }).exec();
-console.log('handleNoPaper', device);
     if (device) {
       connectionManager.broadcastToClients({
         type: 'noPapper',
