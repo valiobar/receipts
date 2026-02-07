@@ -77,7 +77,7 @@ export const setupDeviceHandler = (app: any, server: http.Server): void => {
           lastSeen: new Date(),
         });
         
-        // Process pending commands after a short delay (allow connection to stabilize)
+        // Process pending and error commands after a short delay (allow connection to stabilize)
         setTimeout(async () => {
           try {
             await commandService.processPendingCommands(deviceId);
@@ -243,7 +243,7 @@ console.log('handleNoPaper', device);
         type: 'noPapper',
         location: {
           name: device.name || device.location || deviceId,
-          device: deviceId,
+          device: device.location,
           status: true, // Device still online
         },
       });

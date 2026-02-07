@@ -5,7 +5,6 @@ import logger from '../config/winston';
 import { writeFile, mkdtemp } from 'fs/promises';
 import { join } from 'path';
 import { tmpdir } from 'os';
-import { ReceiptStatus } from '../models';
 
 /**
  * GET /api/receipts
@@ -17,22 +16,11 @@ export const listReceipts = async (req: Request, res: Response): Promise<void> =
     const deviceId = req.query.deviceId as string | undefined;
     const startDate = req.query.startDate as string | undefined;
     const endDate = req.query.endDate as string | undefined;
-    const userNumber = req.query.userNumber as string | undefined;
-    const statusParam = req.query.status as string | undefined;
+    const customerNumber = req.query.customerNumber as string | undefined;
     const limit = parseInt(req.query.limit as string) || 50;
     const offset = parseInt(req.query.offset as string) || 0;
     const sortBy = (req.query.sortBy as string) || 'ts';
     const sortOrder = (req.query.sortOrder as 'asc' | 'desc') || 'desc';
-    
-    // Validate and convert status string to ReceiptStatus enum
-    let status: ReceiptStatus | undefined;
-    if (statusParam) {
-      if (statusParam === 'pending') {
-        status = ReceiptStatus.PENDING;
-      } else if (statusParam === 'processed') {
-        status = ReceiptStatus.PROCESSED;
-      }
-    }
     
     // Validate limit (max 100)
     const validatedLimit = Math.min(limit, 100);
@@ -42,16 +30,40 @@ export const listReceipts = async (req: Request, res: Response): Promise<void> =
       deviceId,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
-      userNumber,
-      status,
+      customerNumber,
       limit: validatedLimit,
       offset,
       sortBy,
       sortOrder,
     });
     
+    // Transform receipts: convert brpUserId to user property
+    const receiptsWithUserData = result.receipts.map((receipt) => {
+      const receiptObj = receipt.toObject ? receipt.toObject() : receipt;
+      const brpUser = receiptObj.brpUserId;
+      
+      // Transform to user property
+      const user = brpUser ? {
+        brpId: brpUser.brpId,
+        firstName: brpUser.firstName,
+        lastName: brpUser.lastName,
+        customerNumber: brpUser.customerNumber,
+        amount: brpUser.amount,
+        initialAmount: brpUser.initialAmount,
+        subscriptionStartDate: brpUser.subscriptionStartDate ? brpUser.subscriptionStartDate.toISOString() : undefined,
+        tsCreated: brpUser.tsCreated ? brpUser.tsCreated.toISOString() : undefined,
+      } : null;
+      
+      // Remove brpUserId from response, add user
+      const { brpUserId, ...receiptWithoutBrpUserId } = receiptObj;
+      return {
+        ...receiptWithoutBrpUserId,
+        user,
+      };
+    });
+    
     sendSuccess(req, res, {
-      receipts: result.receipts,
+      receipts: receiptsWithUserData,
       pagination: {
         total: result.pagination.total,
         limit: validatedLimit,
@@ -83,7 +95,30 @@ export const getReceipt = async (req: Request, res: Response): Promise<void> => 
       return;
     }
     
-    sendSuccess(req, res, { receipt });
+    // Transform receipt: convert brpUserId to user property
+    const receiptObj = receipt.toObject ? receipt.toObject() : receipt;
+    const brpUser = receiptObj.brpUserId;
+    
+    // Transform to user property
+    const user = brpUser ? {
+      brpId: brpUser.brpId,
+      firstName: brpUser.firstName,
+      lastName: brpUser.lastName,
+      customerNumber: brpUser.customerNumber,
+      amount: brpUser.amount,
+      initialAmount: brpUser.initialAmount,
+      subscriptionStartDate: brpUser.subscriptionStartDate ? brpUser.subscriptionStartDate.toISOString() : undefined,
+      tsCreated: brpUser.tsCreated ? brpUser.tsCreated.toISOString() : undefined,
+    } : null;
+    
+    // Remove brpUserId from response, add user
+    const { brpUserId, ...receiptWithoutBrpUserId } = receiptObj;
+    const receiptWithUser = {
+      ...receiptWithoutBrpUserId,
+      user,
+    };
+    
+    sendSuccess(req, res, { receipt: receiptWithUser });
   } catch (error) {
     logger.error('Get receipt error', {
       error: error instanceof Error ? error.message : String(error),

@@ -242,9 +242,9 @@ class CommandService {
    * Process pending commands for a device
    * Gets next pending command and sends to device via connection manager
    */
-  async processPendingCommands(deviceId: string): Promise<void> {
-    const pendingCommand = await Command.getPending(deviceId);
-
+  async processPendingCommands(deviceId: string, isError: boolean = false): Promise<void> {
+    const pendingCommand = await Command.getPending(deviceId, isError);
+    
     if (!pendingCommand) {
       logger.debug('No pending commands for device', { device: deviceId });
       return;
@@ -364,10 +364,13 @@ class CommandService {
           // Don't throw - command status update should still succeed
         }
       }
+      await this.processPendingCommands(command.deviceId, true);
+    } else {
+      await this.processPendingCommands(command.deviceId);
     }
 
     // Process next pending command for device
-    await this.processPendingCommands(command.deviceId);
+    
 
     return command;
   }

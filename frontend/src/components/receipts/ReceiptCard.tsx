@@ -49,8 +49,8 @@ export const ReceiptCard = ({ receipt, onClick }: ReceiptCardProps): JSX.Element
     <div
       onClick={handleClick}
       className={`
-        bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6
-        transition-all duration-200
+        bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-3
+        transition-all duration-200 flex flex-col
         ${isClickable ? 'cursor-pointer hover:shadow-md hover:border-primary-300 dark:hover:border-primary-600' : ''}
       `.trim()}
       role={isClickable ? 'button' : undefined}
@@ -63,67 +63,57 @@ export const ReceiptCard = ({ receipt, onClick }: ReceiptCardProps): JSX.Element
       }}
       aria-label={isClickable ? `View receipt ${receipt._id}` : undefined}
     >
-      {/* Header row - Receipt number and status */}
-      <div className="flex items-start justify-between mb-4">
-        <div className="flex-1">
-          <h3 className="text-lg font-semibold text-gray-900 dark:text-white">
-            Receipt #{receipt._id.slice(-8)}
-          </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">ID: {receipt._id}</p>
+      {/* Amount - Prominent */}
+      <div className="mb-2">
+        <p className="text-lg font-bold text-gray-900 dark:text-white">{formatAmount(receipt.amount)}</p>
+      </div>
+
+      {/* Compact info list */}
+      <div className="space-y-1.5 flex-1">
+        <div className="flex items-start justify-between text-xs">
+          <span className="text-gray-500 dark:text-gray-400">Timestamp:</span>
+          <span className="text-gray-900 dark:text-white font-medium text-right ml-2">
+            {formatDate(receipt.ts, {
+              month: 'short',
+              day: 'numeric',
+              hour: '2-digit',
+              minute: '2-digit',
+            })}
+          </span>
         </div>
+
+        <div className="flex items-start justify-between text-xs">
+          <span className="text-gray-500 dark:text-gray-400">User:</span>
+          <span className="text-gray-900 dark:text-white font-medium text-right ml-2" title={receipt.user ? `${receipt.user.firstName} ${receipt.user.lastName}` : undefined}>
+            {receipt.user?.customerNumber || receipt.userNumber || 'N/A'}
+          </span>
+        </div>
+
+        <div className="flex items-start justify-between text-xs">
+          <span className="text-gray-500 dark:text-gray-400">Location:</span>
+          <span className="text-gray-900 dark:text-white font-medium text-right ml-2 truncate" title={receipt.location}>
+            {receipt.location || 'N/A'}
+          </span>
+        </div>
+
+        <div className="flex items-start justify-between text-xs">
+          <span className="text-gray-500 dark:text-gray-400">Device ID:</span>
+          <span className="text-gray-900 dark:text-white font-medium text-right ml-2 truncate" title={receipt.device}>
+            {receipt.device || 'N/A'}
+          </span>
+        </div>
+      </div>
+
+      {/* Status badge at bottom */}
+      <div className="mt-2 pt-2 border-t border-gray-200 dark:border-gray-700">
         <span
           className={`
-            px-3 py-1 rounded-full text-xs font-medium border
+            inline-block px-2 py-0.5 rounded text-xs font-medium border
             ${getStatusBadgeClasses(receipt.Status)}
           `.trim()}
         >
           {receipt.Status}
         </span>
-      </div>
-
-      {/* Amount */}
-      <div className="mb-4">
-        <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Amount</p>
-        <p className="text-2xl font-bold text-gray-900 dark:text-white">{formatAmount(receipt.amount)}</p>
-        {receipt.MembershipFee && parseFloat(receipt.MembershipFee) > 0 && (
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-            Membership Fee: {formatAmount(receipt.MembershipFee)}
-          </p>
-        )}
-      </div>
-
-      {/* Details grid */}
-      <div className="grid grid-cols-2 gap-4 mb-4">
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">User Number</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{receipt.userNumber || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Location</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{receipt.location || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">Device</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{receipt.device || 'N/A'}</p>
-        </div>
-        <div>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-1">IP Address</p>
-          <p className="text-sm font-medium text-gray-900 dark:text-white">{receipt.ip || 'N/A'}</p>
-        </div>
-      </div>
-
-      {/* Timestamp */}
-      <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
-        <p className="text-xs text-gray-500 dark:text-gray-400">
-          {formatDate(receipt.ts, {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-            second: '2-digit',
-          })}
-        </p>
       </div>
     </div>
   );

@@ -18,21 +18,13 @@ export const ReceiptFilters = ({ onApply, onReset }: ReceiptFiltersProps): JSX.E
     deviceId: filters.deviceId || '',
     startDate: filters.startDate || '',
     endDate: filters.endDate || '',
-    userNumber: filters.userNumber || '',
-    status: filters.status || undefined,
+    customerNumber: filters.customerNumber || '',
   });
 
   const handleInputChange = (field: keyof ReceiptFiltersType, value: string): void => {
     setLocalFilters((prev) => ({
       ...prev,
       [field]: value || undefined,
-    }));
-  };
-
-  const handleStatusChange = (status: 'pending' | 'processed' | ''): void => {
-    setLocalFilters((prev) => ({
-      ...prev,
-      status: status || undefined,
     }));
   };
 
@@ -109,33 +101,16 @@ export const ReceiptFilters = ({ onApply, onReset }: ReceiptFiltersProps): JSX.E
           />
         </div>
 
-        {/* User Number Filter */}
+        {/* Customer Number Filter */}
         <div>
           <Input
-            id="user-number-filter"
+            id="customer-number-filter"
             type="text"
-            label="User Number"
-            placeholder="Enter user number"
-            value={localFilters.userNumber || ''}
-            onChange={(e) => handleInputChange('userNumber', e.target.value)}
+            label="Customer Number"
+            placeholder="Enter customer number"
+            value={localFilters.customerNumber || ''}
+            onChange={(e) => handleInputChange('customerNumber', e.target.value)}
           />
-        </div>
-
-        {/* Status Filter */}
-        <div>
-          <label htmlFor="status-filter" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-            Status
-          </label>
-          <select
-            id="status-filter"
-            value={localFilters.status || ''}
-            onChange={(e) => handleStatusChange(e.target.value as 'pending' | 'processed' | '')}
-            className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 text-gray-900 dark:text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-colors duration-200"
-          >
-            <option value="">All Statuses</option>
-            <option value="pending">Pending</option>
-            <option value="processed">Processed</option>
-          </select>
         </div>
       </div>
 

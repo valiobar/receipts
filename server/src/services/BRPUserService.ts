@@ -58,9 +58,16 @@ class BRPUserService {
       if (existingUser) {
         // User exists: Decrease amount by 1 (ensure it doesn't go below 0)
         const newAmount = Math.max(0, existingUser.amount - 1);
+        
+        // Update subscription start date if provided and not already set
+        const updateData: any = { $set: { amount: newAmount } };
+        if (subscription?.start && !existingUser.subscriptionStartDate) {
+          updateData.$set.subscriptionStartDate = new Date(subscription.start);
+        }
+        
         await BRPUser.findOneAndUpdate(
           { brpId: personId },
-          { $set: { amount: newAmount } },
+          updateData,
           { new: true }
         );
 
@@ -78,6 +85,9 @@ class BRPUserService {
         const subscriptionPriceAmount = subscription.price.amount / 200;
         const initialAmount = Math.max(0, subscriptionPriceAmount - 1);
 
+        // Extract subscription start date
+        const subscriptionStartDate = subscription.start ? new Date(subscription.start) : undefined;
+
         // Create new BRP user
         await BRPUser.create({
           brpId: personId,
@@ -85,6 +95,8 @@ class BRPUserService {
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
           amount: initialAmount,
+          initialAmount: initialAmount,
+          subscriptionStartDate,
         });
 
         logger.info('New BRP user created with Pulse Club amount', {

@@ -18,7 +18,7 @@ export const Layout = ({ children }: LayoutProps): JSX.Element => {
         <Sidebar />
 
         {/* Main content area */}
-        <main className="flex-1 lg:ml-64">
+        <main className="flex-1 lg:ml-64 overflow-hidden">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
             {children}
           </div>

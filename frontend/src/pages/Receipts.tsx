@@ -1,7 +1,7 @@
 import { JSX, useEffect } from 'react';
 import { useReceipts } from '@/hooks/useReceipts';
 import { ReceiptFilters } from '@/components/receipts/ReceiptFilters';
-import { ReceiptList } from '@/components/receipts/ReceiptList';
+import { ReceiptTable } from '@/components/receipts/ReceiptTable';
 import { ReceiptExport } from '@/components/receipts/ReceiptExport';
 
 export const Receipts = (): JSX.Element => {
@@ -28,8 +28,8 @@ export const Receipts = (): JSX.Element => {
       {/* Filters */}
       <ReceiptFilters />
 
-      {/* Receipt List */}
-      <ReceiptList />
+      {/* Receipt Table */}
+      <ReceiptTable />
     </div>
   );
 };

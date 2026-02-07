@@ -1,5 +1,6 @@
 import mongoose, { Schema, Model, Document } from 'mongoose';
 import { IReceipt, ReceiptStatus } from './types';
+import { BRPUser } from './BRPUser';
 
 // Document interface extending IReceipt (without _id) and Mongoose Document
 export interface IReceiptDocument extends Omit<IReceipt, '_id'>, Document {}
@@ -43,6 +44,11 @@ const receiptSchema = new Schema<IReceiptDocument>(
       default: Date.now,
       index: true,
     },
+    brpUserId: {
+      type: Schema.Types.ObjectId,
+      ref: 'BRPUser',
+      index: true,
+    },
   },
   {
     timestamps: false, // Using custom ts field instead of createdAt/updatedAt
@@ -58,6 +64,9 @@ receiptSchema.index({ Status: 1, device: 1 });
 
 // Index for general timestamp-based queries
 receiptSchema.index({ ts: -1 });
+
+// Index for querying receipts by brpUserId
+receiptSchema.index({ brpUserId: 1 });
 
 // Static method: Get last receipt for a device
 receiptSchema.statics.getLastReceipt = async function (

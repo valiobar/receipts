@@ -34,6 +34,14 @@ const brpUserSchema = new Schema<IBRPUserDocument>(
       type: Number,
       required: true,
     },
+    initialAmount: {
+      type: Number,
+      required: true,
+    },
+    subscriptionStartDate: {
+      type: Date,
+      index: true,
+    },
     tsCreated: {
       type: Date,
       default: Date.now,

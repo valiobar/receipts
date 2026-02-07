@@ -1,16 +1,11 @@
-import { JSX, useEffect } from 'react';
+import { JSX } from 'react';
 import { useDevices } from '@/hooks/useDevices';
 import { DeviceList } from '@/components/devices/DeviceList';
 import { DeviceStatus } from '@/components/devices/DeviceStatus';
 import { DeviceCommand } from '@/components/devices/DeviceCommand';
 
 export const Devices = (): JSX.Element => {
-  const { selectedDevice, fetchDevices } = useDevices();
-
-  // Fetch devices on mount
-  useEffect(() => {
-    fetchDevices();
-  }, [fetchDevices]);
+  const { selectedDevice } = useDevices(); // Automatically fetches devices if needed
 
   return (
     <div className="space-y-6">

@@ -139,11 +139,16 @@ commandSchema.statics.getLastReceipt = async function (
 
 // Static method: Get pending command for a device
 commandSchema.statics.getPending = async function (
-  deviceId: string
+  deviceId: string,
+  isError: boolean = false
 ): Promise<ICommandDocument | null> {
+  const statusFilter = isError
+    ? { $in: [CommandStatus.PENDING, CommandStatus.ERROR] }
+    : CommandStatus.PENDING;
+  
   return this.findOne({
     deviceId: deviceId,
-    status: CommandStatus.PENDING,
+    status: statusFilter,
   })
     .sort({ ts: 1 })
     .exec();
@@ -175,7 +180,7 @@ commandSchema.statics.changeStatus = async function (
   // Set status based on isError flag
   // Only update if command is in PROCESSING status (to prevent updating already completed commands)
 
-    command.status = isError ? CommandStatus.PENDING : CommandStatus.COMPLETE;
+    command.status = isError ? CommandStatus.ERROR : CommandStatus.COMPLETE;
     command.tsProcessed = new Date();
     return command.save();
 
@@ -202,7 +207,7 @@ commandSchema.statics.setProcessing = async function (
 // Model interface extending Model with static methods
 interface ICommandModel extends Model<ICommandDocument> {
   getLastReceipt(deviceId: string): Promise<ICommandDocument | null>;
-  getPending(deviceId: string): Promise<ICommandDocument | null>;
+  getPending(deviceId: string, isError?: boolean): Promise<ICommandDocument | null>;
   getReceiptsForPeriod(
     startDate: Date,
     endDate: Date

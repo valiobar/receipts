@@ -37,31 +37,12 @@ const startServer = async (): Promise<void> => {
       getWss: typeof expressWs.getWss === 'function',
     });
 
-    // 5.5. Add upgrade listener AFTER express-ws to log all WebSocket connection attempts
-    // This won't interfere with express-ws's own upgrade handling
-    server.on('upgrade', (request, socket, head) => {
-      logger.info('WebSocket upgrade request received', {
-        url: request.url,
-        path: request.url,
-        method: request.method,
-        headers: {
-          upgrade: request.headers.upgrade,
-          connection: request.headers.connection,
-          'sec-websocket-key': request.headers['sec-websocket-key'],
-          'sec-websocket-version': request.headers['sec-websocket-version'],
-        },
-      });
-    });
+    
 
     // 6. Setup WebSocket handlers (after express-ws initialization)
     setupDeviceHandler(app, server);
     setupClientHandler(app, server);
-    
-    // 6.5. Verify routes are registered by checking express-ws internals
-    logger.info('WebSocket routes registered', {
-      // @ts-ignore - accessing express-ws internal route tracking
-      wsRoutes: (app as any)._wsRoutes || 'not available',
-    });
+
 
     // 7. Apply error handler middleware (must be last)
     app.use(errorHandler);

@@ -33,6 +33,7 @@ export interface IReceipt {
   ip: string;
   Status: ReceiptStatus;
   ts: Date;
+  brpUserId?: string; // Reference to BRPUser _id
 }
 
 // Command interface
@@ -95,6 +96,8 @@ export interface IBRPUser {
   user?: string; // Optional user identifier or reference
   customerNumber: string;
   amount: number;
+  initialAmount: number; // The starting amount when user was created
+  subscriptionStartDate?: Date;
   tsCreated: Date;
 }
 

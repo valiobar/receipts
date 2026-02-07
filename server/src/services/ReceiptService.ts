@@ -1,15 +1,17 @@
 import { Receipt, ReceiptStatus, IReceiptDocument, CommandType, ICommandDocument } from '../models';
+import { BRPUser } from '../models/BRPUser';
 import logger from '../config/winston';
 import ExcelJS from 'exceljs';
 import { brpUserService } from './BRPUserService';
 import type { BRPSubscription } from '../types/brp-api';
+import type { Types } from 'mongoose';
 
 // Receipt query filters
 export interface ReceiptFilters {
   deviceId?: string;
   startDate?: Date;
   endDate?: Date;
-  userNumber?: string;
+  customerNumber?: string;
   status?: ReceiptStatus;
   limit?: number;
   offset?: number;
@@ -49,8 +51,7 @@ class ReceiptService {
       deviceId,
       startDate,
       endDate,
-      userNumber,
-      status,
+      customerNumber,
       limit = 50,
       offset = 0,
       sortBy = 'ts',
@@ -64,12 +65,24 @@ class ReceiptService {
       query.device = deviceId;
     }
 
-    if (userNumber) {
-      query.userNumber = userNumber;
-    }
-
-    if (status) {
-      query.Status = status;
+    // Handle customerNumber filter (filter by BRPUser customerNumber)
+    if (customerNumber) {
+      // Find BRPUser documents with matching customerNumber (supports partial matches)
+      const brpUsers = await BRPUser.find({
+        customerNumber: { $regex: customerNumber, $options: 'i' },
+      })
+        .select('_id')
+        .exec();
+      
+      const brpUserIds: Types.ObjectId[] = brpUsers.map((user) => user._id);
+      
+      if (brpUserIds.length > 0) {
+        // Filter receipts by brpUserId
+        query.brpUserId = { $in: brpUserIds };
+      } else {
+        // If no BRP users found with this customer number, return empty result
+        query.brpUserId = { $in: [] };
+      }
     }
 
     if (startDate || endDate) {
@@ -92,6 +105,7 @@ class ReceiptService {
     // Execute query with pagination
     const [receipts, total] = await Promise.all([
       Receipt.find(query)
+        .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate tsCreated')
         .sort(sort)
         .limit(limit)
         .skip(offset)
@@ -120,7 +134,9 @@ class ReceiptService {
    * Get receipt by ID
    */
   async getReceiptById(receiptId: string): Promise<IReceiptDocument | null> {
-    const receipt = await Receipt.findById(receiptId).exec();
+    const receipt = await Receipt.findById(receiptId)
+      .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate tsCreated')
+      .exec();
     
     if (!receipt) {
       logger.debug('Receipt not found', { receiptId });
@@ -325,6 +341,33 @@ class ReceiptService {
         return null;
       }
 
+      // Find BRPUser before creating receipt (if userNumber is valid)
+      let brpUser = null;
+      let personId: number | null = null;
+      
+      if (receiptData.userNumber) {
+        personId = parseInt(receiptData.userNumber, 10);
+        
+        if (!isNaN(personId) && personId > 0) {
+          // Try to find by brpId (numeric userNumber is BRP person ID)
+          brpUser = await BRPUser.findOne({ brpId: personId }).exec();
+        }
+        
+        // If not found by brpId, try by customerNumber
+        if (!brpUser) {
+          brpUser = await BRPUser.findOne({ customerNumber: receiptData.userNumber }).exec();
+        }
+        
+        // If BRPUser found, store its _id
+        if (brpUser) {
+          (receiptData as any).brpUserId = brpUser._id;
+          logger.debug('BRPUser found and linked to receipt', {
+            brpUserId: brpUser._id,
+            userNumber: receiptData.userNumber,
+          });
+        }
+      }
+
       // Create and save Receipt document
       const receipt = new Receipt(receiptData);
       const savedReceipt = await receipt.save();
@@ -338,24 +381,37 @@ class ReceiptService {
 
       // Process Pulse Club amount if userNumber is a valid numeric ID (BRP person ID)
       if (savedReceipt.userNumber) {
-        const personId = parseInt(savedReceipt.userNumber, 10);
-        if (!isNaN(personId) && personId > 0) {
+        const personIdForProcessing = personId || parseInt(savedReceipt.userNumber, 10);
+        if (!isNaN(personIdForProcessing) && personIdForProcessing > 0) {
           // Only process if userNumber is a valid numeric ID (BRP person IDs are numeric)
           try {
             // Extract subscription from command if available
             const pulseClubSubscription = command.pulseClubSubscription as BRPSubscription | undefined;
             
             // Pass subscription data to avoid duplicate API call
-            await brpUserService.processPulseClubAmount(personId, pulseClubSubscription);
+            await brpUserService.processPulseClubAmount(personIdForProcessing, pulseClubSubscription);
             logger.debug('Pulse Club amount processed after receipt creation', {
               receiptId: savedReceipt._id,
-              personId,
+              personId: personIdForProcessing,
               subscriptionProvided: !!pulseClubSubscription,
             });
+
+            // After processing, BRPUser might have been created/updated, so update receipt if needed
+            if (!savedReceipt.brpUserId) {
+              const updatedBrpUser = await BRPUser.findOne({ brpId: personIdForProcessing }).exec();
+              if (updatedBrpUser) {
+                savedReceipt.brpUserId = updatedBrpUser._id;
+                await savedReceipt.save();
+                logger.debug('BRPUser linked to receipt after Pulse Club processing', {
+                  receiptId: savedReceipt._id,
+                  brpUserId: updatedBrpUser._id,
+                });
+              }
+            }
           } catch (error) {
             logger.error('Error processing Pulse Club amount after receipt creation', {
               receiptId: savedReceipt._id,
-              personId,
+              personId: personIdForProcessing,
               error: error instanceof Error ? error.message : String(error),
             });
             // Don't throw - receipt creation should still succeed

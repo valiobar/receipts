@@ -1,28 +1,31 @@
 import { JSX, useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
 import { useReceipts } from '@/hooks/useReceipts';
 import { useDevices } from '@/hooks/useDevices';
 import { apiService } from '@/services/api.service';
 import { ReceiptCard } from '@/components/receipts/ReceiptCard';
 import { Loading } from '@/components/common/Loading';
+import { DevicesStatusList } from '@/components/devices/DevicesStatusList';
+import { OnlineDevicesCard } from '@/components/devices/OnlineDevicesCard';
+import { OfflineDevicesCard } from '@/components/devices/OfflineDevicesCard';
 import { formatDate } from '@/utils/date';
 import type { SystemStatusResponse } from '@/types';
 
 export const Dashboard = (): JSX.Element => {
-  const { receipts, fetchReceipts } = useReceipts();
-  const { devices, onlineDevices } = useDevices();
+  const { receipts, pagination, fetchReceipts } = useReceipts();
+  useDevices(); // Devices will be updated via WebSocket when client connects
   const [systemStatus, setSystemStatus] = useState<SystemStatusResponse | null>(null);
   const [isLoadingStatus, setIsLoadingStatus] = useState<boolean>(true);
 
-  // Fetch recent receipts (last 10)
+  // Fetch all receipts
+  // Device statuses will be updated via WebSocket when client connects
   useEffect(() => {
-    const loadRecentReceipts = async (): Promise<void> => {
+    const loadAllReceipts = async (): Promise<void> => {
       await fetchReceipts({
-        limit: 10,
+        limit: 1000, // Large limit to fetch all receipts
         offset: 0,
       });
     };
-    loadRecentReceipts();
+    loadAllReceipts();
   }, [fetchReceipts]);
 
   // Fetch system status
@@ -42,17 +45,13 @@ export const Dashboard = (): JSX.Element => {
     };
 
     loadSystemStatus();
-    // Poll for status updates every 30 seconds
-    const interval = setInterval(loadSystemStatus, 30000);
+    // Poll for status updates every 2 minutes
+    const interval = setInterval(loadSystemStatus, 120000);
 
     return () => {
       clearInterval(interval);
     };
   }, []);
-
-  const onlineDevicesCount = onlineDevices.size;
-  const offlineDevicesCount = devices.length - onlineDevicesCount;
-  const recentReceipts = receipts.slice(0, 10);
 
   return (
     <div className="space-y-6">
@@ -70,9 +69,9 @@ export const Dashboard = (): JSX.Element => {
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
           <div className="flex items-center justify-between">
             <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Recent Receipts</p>
+              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Total Receipts</p>
               <p className="mt-2 text-3xl font-bold text-gray-900 dark:text-white">
-                {receipts.length}
+                {pagination?.total ?? receipts.length}
               </p>
             </div>
             <div className="p-3 bg-blue-100 dark:bg-blue-900/30 rounded-lg">
@@ -95,60 +94,10 @@ export const Dashboard = (): JSX.Element => {
         </div>
 
         {/* Online Devices Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Online Devices</p>
-              <p className="mt-2 text-3xl font-bold text-green-600 dark:text-green-400">
-                {systemStatus?.devices.online ?? onlineDevicesCount}
-              </p>
-            </div>
-            <div className="p-3 bg-green-100 dark:bg-green-900/30 rounded-lg">
-              <svg
-                className="h-6 w-6 text-green-600 dark:text-green-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+        <OnlineDevicesCard />
 
         {/* Offline Devices Card */}
-        <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">Offline Devices</p>
-              <p className="mt-2 text-3xl font-bold text-red-600 dark:text-red-400">
-                {systemStatus?.devices.offline ?? offlineDevicesCount}
-              </p>
-            </div>
-            <div className="p-3 bg-red-100 dark:bg-red-900/30 rounded-lg">
-              <svg
-                className="h-6 w-6 text-red-600 dark:text-red-400"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"
-                />
-              </svg>
-            </div>
-          </div>
-        </div>
+        <OfflineDevicesCard />
 
         {/* Pending Commands Card */}
         <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-6">
@@ -177,6 +126,47 @@ export const Dashboard = (): JSX.Element => {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* Devices Status Section */}
+      <DevicesStatusList />
+
+      {/* Recent Receipts Section */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Receipts</h2>
+        </div>
+
+        {receipts.length === 0 ? (
+          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
+            <div className="max-w-md mx-auto">
+              <svg
+                className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                aria-hidden="true"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
+                />
+              </svg>
+              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No receipts yet</h3>
+              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+                Receipts will appear here as they are processed.
+              </p>
+            </div>
+          </div>
+        ) : (
+          <div className="grid grid-cols-5 gap-6">
+            {receipts.slice(0, 5).map((receipt) => (
+              <ReceiptCard key={receipt._id} receipt={receipt} />
+            ))}
+          </div>
+        )}
       </div>
 
       {/* System Status Section */}
@@ -215,50 +205,6 @@ export const Dashboard = (): JSX.Element => {
           </div>
         </div>
       )}
-
-      {/* Recent Receipts Section */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Recent Receipts</h2>
-          <Link
-            to="/receipts"
-            className="text-sm font-medium text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300"
-          >
-            View all →
-          </Link>
-        </div>
-
-        {recentReceipts.length === 0 ? (
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-12 text-center">
-            <div className="max-w-md mx-auto">
-              <svg
-                className="mx-auto h-12 w-12 text-gray-400 dark:text-gray-500"
-                fill="none"
-                viewBox="0 0 24 24"
-                stroke="currentColor"
-                aria-hidden="true"
-              >
-                <path
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  strokeWidth={2}
-                  d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"
-                />
-              </svg>
-              <h3 className="mt-4 text-lg font-medium text-gray-900 dark:text-white">No receipts yet</h3>
-              <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
-                Receipts will appear here as they are processed.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {recentReceipts.map((receipt) => (
-              <ReceiptCard key={receipt._id} receipt={receipt} />
-            ))}
-          </div>
-        )}
-      </div>
     </div>
   );
 };
