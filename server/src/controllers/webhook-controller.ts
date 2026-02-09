@@ -112,7 +112,7 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
       res.status(200).json({ success: true });
       return;
     }
-
+    console.log('PAYLOAD ', payload);
     // Check for Pulse Club subscription before creating receipt event
     let pulseClubSubscription: BRPSubscription | undefined;
     if (person?.id && typeof person.id === 'number') {
