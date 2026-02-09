@@ -182,6 +182,7 @@ async function handleDeviceMessage(
     return;
   }
   console.log('message.Status', message.Status);
+  console.log('message.Action', message);
   // Handle status responses
   if (message.Status) {
     if (message.Status === 'noPapper') {
