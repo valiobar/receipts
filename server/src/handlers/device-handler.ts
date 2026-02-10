@@ -35,7 +35,7 @@ export const setupDeviceHandler = (app: any, server: http.Server): void => {
   
   try {
     app.ws('/ws/:deviceId', (ws: WebSocket, req: any) => {
-    logger.info('Device connection attempt', {
+    logger.warn('Device connection attempt', {
       path: req.path,
       url: req.url,
       params: req.params,
@@ -181,7 +181,7 @@ async function handleDeviceMessage(
     });
     return;
   }
-  console.log('message.Status', message.Status);
+
   console.log('message.Action', message);      
 
   // Handle status responses
