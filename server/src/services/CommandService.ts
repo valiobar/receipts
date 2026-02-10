@@ -50,7 +50,7 @@ class CommandService {
     }
 
     // Check for duplicate (same user, same device) within a short time window
-    const DUPLICATE_RECEIPT_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
+    const DUPLICATE_RECEIPT_WINDOW_MS = 5* 60 * 60 * 1000; // 5 hours
     const lastCommand = await Command.getLastReceipt(data.device);
     
     const lastCommandAgeMs =

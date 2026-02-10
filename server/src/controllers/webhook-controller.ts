@@ -87,20 +87,20 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     // Handle PASSAGE_TRY event structure
     if (eventType === BRPEventType.PASSAGE_TRY) {
       const passageTryData = eventData as BRPPassageTryData;
-      if(passageTryData.passageTry.businessUnit.id === 1 || passageTryData.passageTry.businessUnit.id === 3) {
-        logger.warn('PASSAGE_TRY event business unit is 1 or 3, skipping receipt creation', {
-          passageTryData: passageTryData.passageTry,
-        });
-        res.status(200).json({ success: true });
-        return;
-      }
-      if(passageTryData.passageTry.result === 0) {
-        logger.info('PASSAGE_TRY event result is 0, skipping receipt creation', {
-          passageTryData: passageTryData.passageTry,
-        });
-        res.status(200).json({ success: true });
-        return; 
-      }
+      // if(passageTryData.passageTry.businessUnit.id === 1 || passageTryData.passageTry.businessUnit.id === 3) {
+      //   logger.warn('PASSAGE_TRY event business unit is 1 or 3, skipping receipt creation', {
+      //     passageTryData: passageTryData.passageTry,
+      //   });
+      //   res.status(200).json({ success: true });
+      //   return;
+      // }
+      // if(passageTryData.passageTry.result === 0) {
+      //   logger.info('PASSAGE_TRY event result is 0, skipping receipt creation', {
+      //     passageTryData: passageTryData.passageTry,
+      //   });
+      //   res.status(200).json({ success: true });
+      //   return; 
+      // }
       person = passageTryData.passageTry.person;
       businessUnit = passageTryData.passageTry.businessUnit;
     } else {
