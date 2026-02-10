@@ -83,7 +83,7 @@ class BRPUserService {
 
         // Calculate initial amount: subscription price amount minus 1
         const subscriptionPriceAmount = subscription.price.amount / 200;
-        const initialAmount = Math.max(0, subscriptionPriceAmount - 1);
+        const initialAmount = Math.max(0, subscriptionPriceAmount );
 
         // Extract subscription start date
         const subscriptionStartDate = subscription.start ? new Date(subscription.start) : undefined;
@@ -94,7 +94,7 @@ class BRPUserService {
           firstName: customer.firstName,
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
-          amount: initialAmount,
+          amount: initialAmount-1,
           initialAmount: initialAmount,
           subscriptionStartDate,
         });
