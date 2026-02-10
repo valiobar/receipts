@@ -87,10 +87,15 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     // Handle PASSAGE_TRY event structure
     if (eventType === BRPEventType.PASSAGE_TRY) {
       const passageTryData = eventData as BRPPassageTryData;
-      if (passageTryData.passageTry) {
-        person = passageTryData.passageTry.person;
-        businessUnit = passageTryData.passageTry.businessUnit;
+      if(passageTryData.passageTry.result === 0) {
+        logger.info('PASSAGE_TRY event result is 0, skipping receipt creation', {
+          passageTryData: passageTryData.passageTry,
+        });
+        res.status(200).json({ success: true });
+        return; 
       }
+      person = passageTryData.passageTry.person;
+      businessUnit = passageTryData.passageTry.businessUnit;
     } else {
       // Handle booking event structure and other event types
       const bookingData = eventData as BRPBookingEventData | Record<string, unknown>;

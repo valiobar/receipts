@@ -180,7 +180,7 @@ export interface BRPPassageTryData {
     businessUnit: BRPBusinessUnitRef;
     person: BRPPersonRef;
     reader: BRPReaderRef;
-    result: number; // 0 = success, other values indicate failure/denial
+    result: number; // 0 =  indicate failure/denial
     time: string; // ISO 8601 timestamp
     [key: string]: unknown;
   };
