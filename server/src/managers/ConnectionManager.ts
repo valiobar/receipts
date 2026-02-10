@@ -53,6 +53,9 @@ class ConnectionManager {
   // Ping intervals: deviceId -> NodeJS.Timeout
   private pingIntervals: Map<string, NodeJS.Timeout> = new Map();
 
+  // Client keepalive intervals: WebSocket -> NodeJS.Timeout (prevents Heroku H15 idle timeout)
+  private clientPingIntervals: Map<WebSocket, NodeJS.Timeout> = new Map();
+
   /**
    * Register device connection
    */
@@ -133,27 +136,55 @@ class ConnectionManager {
    */
   registerClient(ws: WebSocket): void {
     this.clientConnections.add(ws);
-    
+    this.startClientPingInterval(ws);
+
     logger.info('Client connected', {
       totalClients: this.clientConnections.size,
     });
-    
+
     // Send connection confirmation
-    this.broadcastToClients({
-      type: 'info',
-      message: 'Connected',
-    }, ws); // Send only to this client
+    this.broadcastToClients(
+      {
+        type: 'info',
+        message: 'Connected',
+      },
+      ws
+    ); // Send only to this client
   }
 
   /**
    * Remove client connection
    */
   removeClient(ws: WebSocket): void {
+    const interval = this.clientPingIntervals.get(ws);
+    if (interval) {
+      clearInterval(interval);
+      this.clientPingIntervals.delete(ws);
+    }
     this.clientConnections.delete(ws);
-    
+
     logger.info('Client disconnected', {
       totalClients: this.clientConnections.size,
     });
+  }
+
+  /**
+   * Start keepalive ping for client (every 25s to stay under Heroku ~55s idle timeout)
+   */
+  private startClientPingInterval(ws: WebSocket): void {
+    const CLIENT_PING_INTERVAL_MS = 25 * 1000;
+
+    const interval = setInterval(() => {
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.ping();
+      } else {
+        clearInterval(interval);
+        this.clientPingIntervals.delete(ws);
+        this.clientConnections.delete(ws);
+      }
+    }, CLIENT_PING_INTERVAL_MS);
+
+    this.clientPingIntervals.set(ws, interval);
   }
 
   /**
