@@ -155,7 +155,7 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     let deviceId = 'unknown';
     try {
       const locationStr = location.toString();
-      if(locationStr === 'DA026876') {
+      if(locationStr === 'DA026505') {
        console.log('LOCATION STR ', payload);
       }
       const devices = await deviceService.getAllDevices({ location: locationStr });
