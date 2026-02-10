@@ -49,16 +49,29 @@ class CommandService {
       throw new Error('Invalid receipt data: user must be at least 2 characters and membershipFee must be > 0');
     }
 
-    // Check for duplicate (same user, same device)
+    // Check for duplicate (same user, same device) within a short time window
+    const DUPLICATE_RECEIPT_WINDOW_MS = 3 * 60 * 1000; // 3 minutes
     const lastCommand = await Command.getLastReceipt(data.device);
     
-    if (lastCommand && lastCommand.userNumber === data.user) {
-      logger.info('Duplicate receipt for same user', {
-        device: data.device,
-        user: data.user,
-        lastCommandId: lastCommand._id,
-      });
-      throw new Error('Duplicate receipt for same user');
+    const lastCommandAgeMs =
+      lastCommand?.ts instanceof Date ? Date.now() - lastCommand.ts.getTime() : null;
+
+    const isDuplicateWithinWindow =
+      lastCommandAgeMs !== null &&
+      lastCommandAgeMs >= 0 &&
+      lastCommandAgeMs <= DUPLICATE_RECEIPT_WINDOW_MS;
+
+    if (lastCommand) {
+      if (lastCommand.userNumber === data.user && isDuplicateWithinWindow) {
+        logger.info('Duplicate receipt for same user', {
+          device: data.device,
+          user: data.user,
+          lastCommandId: lastCommand._id,
+          lastCommandTs: lastCommand.ts,
+          lastCommandAgeMs,
+        });
+        throw new Error('Duplicate receipt for same user (within 3 minutes)');
+      }
     }
 
     // Create new command with subscription data

@@ -112,7 +112,7 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
       res.status(200).json({ success: true });
       return;
     }
-    console.log('PAYLOAD ', payload);
+   // console.log('PAYLOAD ', payload);
     // Check for Pulse Club subscription before creating receipt event
     let pulseClubSubscription: BRPSubscription | undefined;
     if (person?.id && typeof person.id === 'number') {
@@ -155,6 +155,9 @@ export const handleBRPWebhook = async (req: Request, res: Response): Promise<voi
     let deviceId = 'unknown';
     try {
       const locationStr = location.toString();
+      if(locationStr === 'DA026876') {
+       console.log('LOCATION STR ', payload);
+      }
       const devices = await deviceService.getAllDevices({ location: locationStr });
       if (devices.length > 0) {
         deviceId = devices[0].deviceId;

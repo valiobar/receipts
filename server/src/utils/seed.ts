@@ -15,22 +15,16 @@ export const seedDefaultUser = async (): Promise<void> => {
     // Check if any users exist
     const userCount = await User.countDocuments().exec();
 
-    if (userCount > 0) {
+    if (userCount > 1) {
       logger.debug('Users already exist, skipping default user creation');
       return;
     }
 
     // Get default user credentials from environment variables
-    const defaultUsername = env.defaultUsername || 'admin';
-    const defaultEmail = env.defaultEmail || 'admin@example.com';
-    const defaultPassword = env.defaultPassword || 'admin123';
+    const defaultUsername = env.defaultUsername || 'pulse';
+    const defaultEmail = env.defaultEmail || 'pulse@example.com';
+    const defaultPassword = env.defaultPassword || 'pulse123';
 
-    // Check if default password is still the default (security warning)
-    if (defaultPassword === 'admin123') {
-      logger.warn(
-        'Using default password for admin user. Please change DEFAULT_USER_PASSWORD in production!'
-      );
-    }
 
     // Generate salt and hash password manually (same logic as pre-save hook)
     // This ensures both salt and hashedPass are valid before validation
