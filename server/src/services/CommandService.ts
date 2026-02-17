@@ -49,29 +49,23 @@ class CommandService {
       throw new Error('Invalid receipt data: user must be at least 2 characters and membershipFee must be > 0');
     }
 
-    // Check for duplicate (same user, same device) within a short time window
-    const DUPLICATE_RECEIPT_WINDOW_MS = 5* 60 * 60 * 1000; // 5 hours
-    const lastCommand = await Command.getLastReceipt(data.device);
-    
-    const lastCommandAgeMs =
-      lastCommand?.ts instanceof Date ? Date.now() - lastCommand.ts.getTime() : null;
+    // One receipt per user per calendar day (UTC)
+    const startOfTodayUtc = new Date();
+    startOfTodayUtc.setUTCHours(0, 0, 0, 0);
 
-    const isDuplicateWithinWindow =
-      lastCommandAgeMs !== null &&
-      lastCommandAgeMs >= 0 &&
-      lastCommandAgeMs <= DUPLICATE_RECEIPT_WINDOW_MS;
+    const existingForUserToday = await Command.getLastReceiptByUserSince(
+      data.user,
+      startOfTodayUtc
+    );
 
-    if (lastCommand) {
-      if (lastCommand.userNumber === data.user && isDuplicateWithinWindow) {
-        logger.info('Duplicate receipt for same user', {
-          device: data.device,
-          user: data.user,
-          lastCommandId: lastCommand._id,
-          lastCommandTs: lastCommand.ts,
-          lastCommandAgeMs,
-        });
-        throw new Error('Duplicate receipt for same user (within 3 minutes)');
-      }
+    if (existingForUserToday) {
+      logger.info('Duplicate receipt: one command per user per day allowed', {
+        device: data.device,
+        user: data.user,
+        existingCommandId: existingForUserToday._id,
+        existingTs: existingForUserToday.ts,
+      });
+      throw new Error('Only one receipt per user per day is allowed');
     }
 
     // Create new command with subscription data

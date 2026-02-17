@@ -90,6 +90,9 @@ commandSchema.index({ commandType: 1, ts: -1 });
 // Index for general timestamp-based queries
 commandSchema.index({ ts: -1 });
 
+// Index for per-user receipt lookup (one receipt per user per day)
+commandSchema.index({ commandType: 1, userNumber: 1, ts: -1 });
+
 // Pre-save hook: Auto-increment _id if not set
 commandSchema.pre('save', async function (next) {
   // Only set _id if it's not already set
@@ -134,6 +137,21 @@ commandSchema.statics.getLastReceipt = async function (
     deviceId: deviceId,
   })
     .sort({ ts: -1 })
+    .exec();
+};
+
+// Static method: Get latest receipt command for a user since a given date (e.g. start of day)
+commandSchema.statics.getLastReceiptByUserSince = async function (
+  userNumber: string,
+  since: Date
+): Promise<ICommandDocument | null> {
+  return this.findOne({
+    commandType: CommandType.RECEIPT,
+    userNumber,
+    ts: { $gte: since },
+  })
+    .sort({ ts: -1 })
+    .limit(1)
     .exec();
 };
 
@@ -207,6 +225,10 @@ commandSchema.statics.setProcessing = async function (
 // Model interface extending Model with static methods
 interface ICommandModel extends Model<ICommandDocument> {
   getLastReceipt(deviceId: string): Promise<ICommandDocument | null>;
+  getLastReceiptByUserSince(
+    userNumber: string,
+    since: Date
+  ): Promise<ICommandDocument | null>;
   getPending(deviceId: string, isError?: boolean): Promise<ICommandDocument | null>;
   getReceiptsForPeriod(
     startDate: Date,
