@@ -3,6 +3,11 @@ import { brpApiService } from './BRPApiService';
 import logger from '../config/winston';
 import type { BRPSubscription, BRPCustomer } from '../types/brp-api';
 
+const extractAmountFromSubscriptionName = (name: string): number | null => {
+  const match = /(\d+)EUR/i.exec(name);
+  return match ? Number.parseInt(match[1], 10) : null;
+};
+
 /**
  * BRPUserService - Manages BRP user amount operations
  * Handles Pulse Club subscription amount management
@@ -81,9 +86,16 @@ class BRPUserService {
         logger.debug('BRP user not found, fetching customer info', { personId });
         const customer = await brpApiService.getCustomerById(personId);
 
-        // Calculate initial amount: subscription price amount minus 1
-        const subscriptionPriceAmount = subscription.price.amount / 200;
-        const initialAmount = Math.max(0, subscriptionPriceAmount );
+        // Extract initial amount from subscription product name (e.g. 990 from "990EUR")
+        const extractedAmount = extractAmountFromSubscriptionName(subscription.subscriptionProduct.name);
+        if (extractedAmount === null) {
+          logger.warn('Could not extract EUR amount from subscription name, skipping user creation', {
+            personId,
+            subscriptionName: subscription.subscriptionProduct.name,
+          });
+          return;
+        }
+        const initialAmount = extractedAmount;
 
         // Extract subscription start date
         const subscriptionStartDate = subscription.start ? new Date(subscription.start) : undefined;
@@ -94,7 +106,7 @@ class BRPUserService {
           firstName: customer.firstName,
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
-          amount: initialAmount-1,
+          amount: initialAmount - 1,
           initialAmount: initialAmount,
           subscriptionStartDate,
         });
@@ -105,7 +117,7 @@ class BRPUserService {
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
           initialAmount,
-          subscriptionPriceAmount,
+          subscriptionName: subscription.subscriptionProduct.name,
         });
       }
     } catch (error) {
@@ -162,6 +174,80 @@ class BRPUserService {
       });
       return null;
     }
+  }
+
+  async backfillInitialAmounts(): Promise<void> {
+    logger.info('Starting backfill of BRPUser initial amounts from subscription names');
+
+    const users = await BRPUser.find({});
+    let updated = 0;
+    let skipped = 0;
+    let failed = 0;
+
+    for (const user of users) {
+      try {
+        const subscriptions = await brpApiService.getCustomerSubscriptions(user.brpId);
+
+        const subscription = subscriptions.find((sub: BRPSubscription) =>
+          sub.subscriptionProduct.name.toLowerCase().includes('pulse club')
+        );
+
+        if (!subscription) {
+          logger.warn('Backfill: No Pulse Club subscription found, skipping', {
+            brpId: user.brpId,
+            customerNumber: user.customerNumber,
+          });
+          skipped++;
+          continue;
+        }
+
+        const extractedAmount = extractAmountFromSubscriptionName(subscription.subscriptionProduct.name);
+
+        if (extractedAmount === null) {
+          logger.warn('Backfill: Could not extract EUR amount from subscription name, skipping', {
+            brpId: user.brpId,
+            subscriptionName: subscription.subscriptionProduct.name,
+          });
+          skipped++;
+          continue;
+        }
+
+        const usedAmount = Math.max(1, user.initialAmount - user.amount);
+        const newAmount = Math.max(0, extractedAmount - usedAmount);
+
+        await BRPUser.findOneAndUpdate(
+          { brpId: user.brpId },
+          { $set: { initialAmount: extractedAmount, amount: newAmount } }
+        );
+
+        logger.info('Backfill: Updated BRP user amounts', {
+          brpId: user.brpId,
+          customerNumber: user.customerNumber,
+          oldInitialAmount: user.initialAmount,
+          oldAmount: user.amount,
+          usedAmount,
+          newInitialAmount: extractedAmount,
+          newAmount,
+          subscriptionName: subscription.subscriptionProduct.name,
+        });
+
+        updated++;
+      } catch (error) {
+        logger.error('Backfill: Error processing user', {
+          brpId: user.brpId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        failed++;
+      }
+    }
+
+    logger.info('Backfill complete', {
+      total: users.length,
+      updated,
+      skipped,
+      failed,
+    });
   }
 }
 
