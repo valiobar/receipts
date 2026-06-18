@@ -1,7 +1,7 @@
 import { BRPUser } from '../models/BRPUser';
 import { brpApiService } from './BRPApiService';
 import logger from '../config/winston';
-import type { BRPSubscription, BRPCustomer } from '../types/brp-api';
+import type { BRPSubscription } from '../types/brp-api';
 
 const extractAmountFromSubscriptionName = (name: string): number | null => {
   const match = /(\d+)EUR/i.exec(name);
@@ -61,26 +61,37 @@ class BRPUserService {
       const existingUser = await BRPUser.findOne({ brpId: personId });
 
       if (existingUser) {
-        // User exists: Decrease amount by 1 (ensure it doesn't go below 0)
-        const newAmount = Math.max(0, existingUser.amount - 1);
-        
+        const isExhausted = existingUser.amount <= 0;
+
+        // Normal entry: decrement by 1.
+        // Exhausted + still has Pulse Club (already guaranteed here): refill to
+        // initialAmount, then consume 1 for this entry.
+        const newAmount = isExhausted
+          ? Math.max(0, existingUser.initialAmount - 1)
+          : existingUser.amount - 1;
+
         // Update subscription start date if provided and not already set
-        const updateData: any = { $set: { amount: newAmount } };
+        const updateData: { $set: { amount: number; subscriptionStartDate?: Date } } = {
+          $set: { amount: newAmount },
+        };
         if (subscription?.start && !existingUser.subscriptionStartDate) {
           updateData.$set.subscriptionStartDate = new Date(subscription.start);
         }
-        
-        await BRPUser.findOneAndUpdate(
-          { brpId: personId },
-          updateData,
-          { new: true }
-        );
 
-        logger.info('BRP user amount decreased', {
-          personId,
-          previousAmount: existingUser.amount,
-          newAmount,
-        });
+        await BRPUser.findOneAndUpdate({ brpId: personId }, updateData, { new: true });
+
+        logger.info(
+          isExhausted
+            ? 'BRP user quota exhausted, refilled to initial amount on entry'
+            : 'BRP user amount decreased',
+          {
+            personId,
+            previousAmount: existingUser.amount,
+            initialAmount: existingUser.initialAmount,
+            newAmount,
+            refilled: isExhausted,
+          }
+        );
       } else {
         // User doesn't exist: Fetch customer info and create new BRP user
         logger.debug('BRP user not found, fetching customer info', { personId });
@@ -95,7 +106,8 @@ class BRPUserService {
           });
           return;
         }
-        const initialAmount = extractedAmount;
+        const initialAmount = Math.floor(extractedAmount / 2);
+        const amount = Math.max(0, initialAmount - 1);
 
         // Extract subscription start date
         const subscriptionStartDate = subscription.start ? new Date(subscription.start) : undefined;
@@ -106,7 +118,7 @@ class BRPUserService {
           firstName: customer.firstName,
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
-          amount: initialAmount - 1,
+          amount,
           initialAmount: initialAmount,
           subscriptionStartDate,
         });
@@ -116,6 +128,7 @@ class BRPUserService {
           firstName: customer.firstName,
           lastName: customer.lastName,
           customerNumber: customer.customerNumber,
+          amount,
           initialAmount,
           subscriptionName: subscription.subscriptionProduct.name,
         });
@@ -174,6 +187,62 @@ class BRPUserService {
       });
       return null;
     }
+  }
+
+  async backfillHalvedInitialAmounts(): Promise<void> {
+    logger.info('Starting BRPUser halve backfill migration (one-off)', {
+      migration: 'HALVE_BRP_USER_AMOUNTS',
+    });
+
+    const users = await BRPUser.find({});
+    let updated = 0;
+    let failed = 0;
+
+    logger.info('Loaded BRP users for halving migration', {
+      migration: 'HALVE_BRP_USER_AMOUNTS',
+      totalUsers: users.length,
+    });
+
+    for (const user of users) {
+      try {
+        const oldInitialAmount = user.initialAmount;
+        const oldAmount = user.amount;
+        const newInitialAmount = Math.floor(oldInitialAmount / 2);
+        const newAmount = Math.max(0, oldAmount - newInitialAmount);
+
+        await BRPUser.findOneAndUpdate(
+          { brpId: user.brpId },
+          { $set: { initialAmount: newInitialAmount, amount: newAmount } }
+        );
+
+        logger.info('Backfill (halve): Updated BRP user amounts', {
+          migration: 'HALVE_BRP_USER_AMOUNTS',
+          brpId: user.brpId,
+          customerNumber: user.customerNumber,
+          oldInitialAmount,
+          newInitialAmount,
+          oldAmount,
+          newAmount,
+        });
+
+        updated++;
+      } catch (error) {
+        logger.error('Backfill (halve): Error processing BRP user', {
+          migration: 'HALVE_BRP_USER_AMOUNTS',
+          brpId: user.brpId,
+          error: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+        });
+        failed++;
+      }
+    }
+
+    logger.info('BRPUser halve backfill migration complete (one-off)', {
+      migration: 'HALVE_BRP_USER_AMOUNTS',
+      totalUsers: users.length,
+      updated,
+      failed,
+    });
   }
 
   async backfillInitialAmounts(): Promise<void> {

@@ -7,17 +7,25 @@ import brpUserService from '../services/BRPUserService';
 import logger from '../config/winston';
 
 const main = async (): Promise<void> => {
-  logger.info('Backfill script started');
+  logger.info('Starting one-off BRP halving migration script', {
+    migration: 'HALVE_BRP_USER_AMOUNTS',
+  });
+  logger.warn('Running one-off data migration. Do not execute more than once.', {
+    migration: 'HALVE_BRP_USER_AMOUNTS',
+  });
 
   await connectDatabase();
-  await brpUserService.backfillInitialAmounts();
+  await brpUserService.backfillHalvedInitialAmounts();
   await mongoose.disconnect();
 
-  logger.info('Backfill script finished, database disconnected');
+  logger.info('Finished one-off BRP halving migration script, database disconnected', {
+    migration: 'HALVE_BRP_USER_AMOUNTS',
+  });
 };
 
 main().catch((error) => {
-  logger.error('Backfill script failed', {
+  logger.error('One-off BRP halving migration script failed', {
+    migration: 'HALVE_BRP_USER_AMOUNTS',
     error: error instanceof Error ? error.message : String(error),
     stack: error instanceof Error ? error.stack : undefined,
   });
