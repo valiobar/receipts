@@ -4,6 +4,19 @@ import { IBRPUser } from './types';
 // Document interface extending IBRPUser (without _id) and Mongoose Document
 export interface IBRPUserDocument extends Omit<IBRPUser, '_id'>, Document {}
 
+// Sub-schema for per-plan leftover voucher records
+const brpLeftoverSchema = new Schema(
+  {
+    subscriptionId: { type: Number },
+    subscriptionName: { type: String },
+    start: { type: Date },
+    boundUntil: { type: Date },
+    amount: { type: Number, required: true },
+    recordedAt: { type: Date, default: Date.now },
+  },
+  { _id: false }
+);
+
 // Mongoose schema definition
 const brpUserSchema = new Schema<IBRPUserDocument>(
   {
@@ -41,6 +54,20 @@ const brpUserSchema = new Schema<IBRPUserDocument>(
     subscriptionStartDate: {
       type: Date,
       index: true,
+    },
+    subscriptionBoundUntil: {
+      type: Date,
+      index: true,
+    },
+    subscriptionId: {
+      type: Number,
+    },
+    subscriptionName: {
+      type: String,
+    },
+    leftovers: {
+      type: [brpLeftoverSchema],
+      default: [],
     },
     tsCreated: {
       type: Date,

@@ -1422,6 +1422,32 @@ interface User {
 }
 ```
 
+### BRP User Model
+
+`BRPUser` links a BRP customer to their receipts and tracks the Pulse Club **voucher** counter and
+**subscription** lifecycle (grant, per-entry decrement, renewal rollover, and per-plan leftovers).
+
+```typescript
+interface IBRPUser {
+  _id: ObjectId;
+  brpId: number;                  // BRP person ID (unique)
+  firstName: string;
+  lastName: string;
+  customerNumber: string;
+  amount: number;                 // spendable vouchers remaining (current cycle)
+  initialAmount: number;          // vouchers granted for the current cycle
+  subscriptionStartDate?: Date;   // current plan start
+  subscriptionBoundUntil?: Date;  // current plan boundUntil (drives renewal detection)
+  subscriptionId?: number;        // current plan id (attribution)
+  subscriptionName?: string;      // current plan product name (attribution)
+  leftovers?: IBRPLeftover[];     // per-plan archive of unused vouchers (not spendable)
+  tsCreated: Date;
+}
+```
+
+> Full behavior — gating, grant derivation, renewal/rollover rules, edge cases, and backfill — is
+> documented in [`USER_RECEIPTS_AND_SUBSCRIPTIONS.md`](./USER_RECEIPTS_AND_SUBSCRIPTIONS.md).
+
 ### Database Indexes
 
 ```typescript

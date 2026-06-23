@@ -87,6 +87,16 @@ export interface IUser {
   updatedAt: Date;
 }
 
+// Per-plan leftover voucher record (captured when a subscription renews)
+export interface IBRPLeftover {
+  subscriptionId?: number; // expired plan's BRP subscription id
+  subscriptionName?: string; // expired plan's product name
+  start?: Date; // expired plan's start
+  boundUntil?: Date; // expired plan's boundUntil
+  amount: number; // unused vouchers carried over from that plan
+  recordedAt: Date; // when this leftover was captured
+}
+
 // BRP User interface
 export interface IBRPUser {
   _id?: string;
@@ -98,6 +108,10 @@ export interface IBRPUser {
   amount: number;
   initialAmount: number; // The starting amount when user was created
   subscriptionStartDate?: Date;
+  subscriptionBoundUntil?: Date; // current plan's boundUntil
+  subscriptionId?: number; // current plan's BRP subscription id
+  subscriptionName?: string; // current plan's product name
+  leftovers?: IBRPLeftover[]; // per-plan leftover history
   tsCreated: Date;
 }
 
