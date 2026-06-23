@@ -422,3 +422,31 @@ It makes one BRP API call per user, only fills missing fields, and is safe to re
 | REST mapping of `receipt.user` | [`server/src/controllers/receipt-controller.ts`](../server/src/controllers/receipt-controller.ts) |
 | One-off baseline backfill runner | [`server/src/scripts/backfillSubscriptionBaseline.ts`](../server/src/scripts/backfillSubscriptionBaseline.ts) |
 | Frontend receipts table | [`frontend/src/components/receipts/ReceiptTable.tsx`](../frontend/src/components/receipts/ReceiptTable.tsx) |
+
+---
+
+## Heroku Backfill Command
+
+Run the one-off subscription-baseline backfill on production (Heroku app: `pulse-fitness`). The
+deploy's `heroku-postbuild` compiles the script to `server/dist/scripts/backfillSubscriptionBaseline.js`.
+
+**Run it (attached one-off dyno):**
+
+```bash
+heroku run "node server/dist/scripts/backfillSubscriptionBaseline.js" -a pulse-fitness
+```
+
+**Long runs (detached + tail logs):** one BRP API call per user, so for a large member base run it
+detached and follow the logs:
+
+```bash
+heroku run:detached "node server/dist/scripts/backfillSubscriptionBaseline.js" -a pulse-fitness
+heroku logs --tail -a pulse-fitness | grep BACKFILL_SUBSCRIPTION_BASELINE
+```
+
+**Notes:**
+- Deploy first — the compiled file only exists after a deploy. Verify with
+  `heroku run "ls server/dist/scripts" -a pulse-fitness`.
+- Uses production config vars automatically (Mongo URI, BRP API creds).
+- Safe to re-run: idempotent (only fills missing identity fields, never touches `amount`/`initialAmount`).
+- The final log line reports `total`, `updated`, `skipped`, `failed`.
