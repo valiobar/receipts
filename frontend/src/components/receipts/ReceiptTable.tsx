@@ -300,6 +300,18 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                     : 'N/A'}
                 </div>
               </div>
+              <div>
+                <div className="text-xs text-gray-500 dark:text-gray-400">Subscription End</div>
+                <div className="text-gray-900 dark:text-white font-medium">
+                  {receipt.user?.subscriptionBoundUntil
+                    ? formatDate(receipt.user.subscriptionBoundUntil, {
+                        month: '2-digit',
+                        day: '2-digit',
+                        year: 'numeric',
+                      })
+                    : 'N/A'}
+                </div>
+              </div>
             </div>
           </div>
         ))}
@@ -365,6 +377,12 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                 >
                   Subscription Start
                 </th>
+                <th
+                  scope="col"
+                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
+                >
+                  Subscription End
+                </th>
               </tr>
             </thead>
             <tbody className="bg-white dark:bg-gray-800 divide-y divide-gray-200 dark:divide-gray-700">
@@ -426,6 +444,15 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {receipt.user?.subscriptionStartDate
                       ? formatDate(receipt.user.subscriptionStartDate, {
+                          month: '2-digit',
+                          day: '2-digit',
+                          year: 'numeric',
+                        })
+                      : 'N/A'}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
+                    {receipt.user?.subscriptionBoundUntil
+                      ? formatDate(receipt.user.subscriptionBoundUntil, {
                           month: '2-digit',
                           day: '2-digit',
                           year: 'numeric',

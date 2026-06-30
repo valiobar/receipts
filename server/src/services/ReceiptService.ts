@@ -152,7 +152,7 @@ class ReceiptService {
     // Execute query with pagination
     const [receipts, total] = await Promise.all([
       Receipt.find(query)
-        .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate tsCreated')
+        .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate subscriptionBoundUntil tsCreated')
         .sort(sort)
         .limit(limit)
         .skip(offset)
@@ -182,7 +182,7 @@ class ReceiptService {
    */
   async getReceiptById(receiptId: string): Promise<IReceiptDocument | null> {
     const receipt = await Receipt.findById(receiptId)
-      .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate tsCreated')
+      .populate('brpUserId', 'brpId firstName lastName customerNumber amount initialAmount subscriptionStartDate subscriptionBoundUntil tsCreated')
       .exec();
     
     if (!receipt) {

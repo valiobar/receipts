@@ -48,6 +48,7 @@ export const listReceipts = async (req: Request, res: Response): Promise<void> =
         amount: brpUser.amount,
         initialAmount: brpUser.initialAmount,
         subscriptionStartDate: brpUser.subscriptionStartDate ? brpUser.subscriptionStartDate.toISOString() : undefined,
+        subscriptionBoundUntil: brpUser.subscriptionBoundUntil ? brpUser.subscriptionBoundUntil.toISOString() : undefined,
         tsCreated: brpUser.tsCreated ? brpUser.tsCreated.toISOString() : undefined,
       } : null;
       
@@ -105,6 +106,7 @@ export const getReceipt = async (req: Request, res: Response): Promise<void> => 
       amount: brpUser.amount,
       initialAmount: brpUser.initialAmount,
       subscriptionStartDate: brpUser.subscriptionStartDate ? brpUser.subscriptionStartDate.toISOString() : undefined,
+      subscriptionBoundUntil: brpUser.subscriptionBoundUntil ? brpUser.subscriptionBoundUntil.toISOString() : undefined,
       tsCreated: brpUser.tsCreated ? brpUser.tsCreated.toISOString() : undefined,
     } : null;
     

@@ -16,6 +16,7 @@ export interface Receipt {
     amount: number;
     initialAmount: number;
     subscriptionStartDate?: string;
+    subscriptionBoundUntil?: string;
     tsCreated: string;
   } | null;
 }
