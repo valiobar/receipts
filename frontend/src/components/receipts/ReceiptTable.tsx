@@ -56,6 +56,55 @@ const calculateUsedVouchers = (receipt: Receipt): number | null => {
 };
 
 /**
+ * Whether the receipt's subscription end date has already passed
+ */
+const isSubscriptionExpired = (receipt: Receipt): boolean => {
+  if (!receipt.user?.subscriptionBoundUntil) {
+    return false;
+  }
+  const endDate = new Date(receipt.user.subscriptionBoundUntil);
+  return !Number.isNaN(endDate.getTime()) && endDate.getTime() < Date.now();
+};
+
+/**
+ * Build the card container classes, highlighting expired-subscription receipts in red
+ */
+const getCardClasses = (receipt: Receipt, isClickable: boolean): string => {
+  const expired = isSubscriptionExpired(receipt);
+  const base = 'rounded-lg shadow-sm border p-4 transition-colors duration-150';
+  const surface = expired
+    ? 'bg-red-50 dark:bg-red-900/20 border-red-300 dark:border-red-800'
+    : 'bg-white dark:bg-gray-800 border-gray-200 dark:border-gray-700';
+
+  if (!isClickable) {
+    return `${base} ${surface}`;
+  }
+
+  const hover = expired
+    ? 'cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30'
+    : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50';
+  return `${base} ${surface} ${hover}`;
+};
+
+/**
+ * Build the desktop row classes, highlighting expired-subscription receipts in red
+ */
+const getRowClasses = (receipt: Receipt, isClickable: boolean): string => {
+  const expired = isSubscriptionExpired(receipt);
+  const base = 'transition-colors duration-150';
+  const surface = expired ? 'bg-red-50 dark:bg-red-900/20' : '';
+
+  if (!isClickable) {
+    return `${base} ${surface}`.trim();
+  }
+
+  const hover = expired
+    ? 'cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30'
+    : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50';
+  return `${base} ${surface} ${hover}`.trim();
+};
+
+/**
  * Format user name as "J.Dow" (first initial + last name)
  */
 const formatUserName = (receipt: Receipt): string => {
@@ -209,11 +258,7 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
           <div
             key={`${receipt._id}-${index}`}
             onClick={() => handleRowClick(receipt)}
-            className={`
-              bg-white dark:bg-gray-800 rounded-lg shadow-sm border border-gray-200 dark:border-gray-700 p-4
-              transition-colors duration-150
-              ${isClickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
-            `.trim()}
+            className={getCardClasses(receipt, isClickable)}
             role={isClickable ? 'button' : undefined}
             tabIndex={isClickable ? 0 : undefined}
             onKeyDown={(e) => {
@@ -286,18 +331,6 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                     const usedVouchers = calculateUsedVouchers(receipt);
                     return usedVouchers !== null ? formatInteger(usedVouchers) : 'N/A';
                   })()}
-                </div>
-              </div>
-              <div>
-                <div className="text-xs text-gray-500 dark:text-gray-400">Subscription Start</div>
-                <div className="text-gray-900 dark:text-white font-medium">
-                  {receipt.user?.subscriptionStartDate
-                    ? formatDate(receipt.user.subscriptionStartDate, {
-                        month: '2-digit',
-                        day: '2-digit',
-                        year: 'numeric',
-                      })
-                    : 'N/A'}
                 </div>
               </div>
               <div>
@@ -375,12 +408,6 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                   scope="col"
                   className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
                 >
-                  Subscription Start
-                </th>
-                <th
-                  scope="col"
-                  className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider"
-                >
                   Subscription End
                 </th>
               </tr>
@@ -390,10 +417,7 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                 <tr
                   key={`${receipt._id}-${index}`}
                   onClick={() => handleRowClick(receipt)}
-                  className={`
-                    transition-colors duration-150
-                    ${isClickable ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-700/50' : ''}
-                  `.trim()}
+                  className={getRowClasses(receipt, isClickable)}
                   role={isClickable ? 'button' : undefined}
                   tabIndex={isClickable ? 0 : undefined}
                   onKeyDown={(e) => {
@@ -440,15 +464,6 @@ export const ReceiptTable = ({ onReceiptClick }: ReceiptTableProps): JSX.Element
                       const usedVouchers = calculateUsedVouchers(receipt);
                       return usedVouchers !== null ? formatInteger(usedVouchers) : 'N/A';
                     })()}
-                  </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
-                    {receipt.user?.subscriptionStartDate
-                      ? formatDate(receipt.user.subscriptionStartDate, {
-                          month: '2-digit',
-                          day: '2-digit',
-                          year: 'numeric',
-                        })
-                      : 'N/A'}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900 dark:text-white">
                     {receipt.user?.subscriptionBoundUntil
