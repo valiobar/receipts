@@ -17,7 +17,9 @@ interface ExportReceiptRow {
   remainVouchers: string;
   initialVouchers: string;
   usedVouchers: string;
+  subscriptionName: string;
   subscriptionStart: string;
+  subscriptionEnd: string;
 }
 
 const formatAmountForExport = (amount: string): string => {
@@ -318,7 +320,9 @@ class ReceiptService {
       { header: 'Remain Vouchers', key: 'remainVouchers', width: 16 },
       { header: 'Initial Vouchers', key: 'initialVouchers', width: 16 },
       { header: 'Used Vouchers', key: 'usedVouchers', width: 14 },
+      { header: 'Subscription Name', key: 'subscriptionName', width: 28 },
       { header: 'Subscription Start', key: 'subscriptionStart', width: 18 },
+      { header: 'Subscription End', key: 'subscriptionEnd', width: 18 },
     ];
 
     // Style header row
@@ -391,7 +395,9 @@ class ReceiptService {
         customerNumber?: string;
         amount?: number;
         initialAmount?: number;
+        subscriptionName?: string;
         subscriptionStartDate?: Date;
+        subscriptionBoundUntil?: Date;
       } | null;
     },
     deviceNameMap: Map<string, string>
@@ -419,9 +425,16 @@ class ReceiptService {
         ? formatIntegerForExport(brpUser.initialAmount - brpUser.amount)
         : 'N/A';
 
+    const subscriptionName = brpUser?.subscriptionName ?? 'N/A';
+
     const subscriptionStart =
       brpUser?.subscriptionStartDate
         ? formatSubscriptionDateForExport(brpUser.subscriptionStartDate)
+        : 'N/A';
+
+    const subscriptionEnd =
+      brpUser?.subscriptionBoundUntil
+        ? formatSubscriptionDateForExport(brpUser.subscriptionBoundUntil)
         : 'N/A';
 
     return {
@@ -433,7 +446,9 @@ class ReceiptService {
       remainVouchers,
       initialVouchers,
       usedVouchers,
+      subscriptionName,
       subscriptionStart,
+      subscriptionEnd,
     };
   }
 
